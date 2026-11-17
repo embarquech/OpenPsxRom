@@ -1,0 +1,213 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Formats &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Internals" href="internals.html" />
+    <link rel="prev" title="Serial protocol" href="protocol.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Formats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#flash-layout-bank-1">Flash layout (bank 1)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cartridge-header">Cartridge header</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#omc1-compressed-data">OMC1 (compressed data)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ofs1-save-store">OFS1 (save store)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#och1-cheats">OCH1 (cheats)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ocf1-settings">OCF1 (settings)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Formats</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/formats.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="formats">
+<h1>Formats<a class="headerlink" href="#formats" title="Link to this heading"></a></h1>
+<section id="flash-layout-bank-1">
+<h2>Flash layout (bank 1)<a class="headerlink" href="#flash-layout-bank-1" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Offset</p></th>
+<th class="head"><p>Size</p></th>
+<th class="head"><p>Content</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>00000h</p></td>
+<td><p>64 KB</p></td>
+<td><p>OpenPsxRom: header, ROM-executed code, OMC1-packed RAM payload</p></td>
+</tr>
+<tr class="row-odd"><td><p>10000h</p></td>
+<td><p>48 KB</p></td>
+<td><p>memory card saves: OFS1 container packed with OMC1</p></td>
+</tr>
+<tr class="row-even"><td><p>1C000h</p></td>
+<td><p>16 KB</p></td>
+<td><p>cheat list <code class="docutils literal notranslate"><span class="pre">OCH1</span></code>; the last 128 bytes (1FF80h) are the settings page <code class="docutils literal notranslate"><span class="pre">OCF1</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>20000h</p></td>
+<td><p>128 KB</p></td>
+<td><p>bank 2 (optional second firmware)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="cartridge-header">
+<h2>Cartridge header<a class="headerlink" href="#cartridge-header" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Offset</p></th>
+<th class="head"><p>Content</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>00h</p></td>
+<td><p>mid-boot entry (address)</p></td>
+</tr>
+<tr class="row-odd"><td><p>04h</p></td>
+<td><p>“Licensed by Sony Computer Entertainment Inc.”</p></td>
+</tr>
+<tr class="row-even"><td><p>30h</p></td>
+<td><p>“OpenPsxRom - open source cartridge firmware” (also used to recognise OpenPsxRom images)</p></td>
+</tr>
+<tr class="row-odd"><td><p>80h</p></td>
+<td><p>pre-boot entry (address), called by the BIOS</p></td>
+</tr>
+<tr class="row-even"><td><p>84h</p></td>
+<td><p>“Licensed by Sony Computer Entertainment Inc.” (the BIOS checks it)</p></td>
+</tr>
+<tr class="row-odd"><td><p>ECh-FCh</p></td>
+<td><p>entries of the ROM-executed code: rom_break, rom_feed, rom_halted, rom_crash, rom_menu</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="omc1-compressed-data">
+<h2>OMC1 (compressed data)<a class="headerlink" href="#omc1-compressed-data" title="Link to this heading"></a></h2>
+<p>Used for the ROM payload and the save store. <code class="docutils literal notranslate"><span class="pre">'OMC1'</span></code>, u32 raw size, u32 CRC32 of the raw data,
+u32 packed size, then LZSS: a flag byte (bit 0 first; 1 = literal byte, 0 = match), a match being
+2 bytes <code class="docutils literal notranslate"><span class="pre">b0</span> <span class="pre">=</span> <span class="pre">(dist-1)</span> <span class="pre">&amp;</span> <span class="pre">255</span></code>, <code class="docutils literal notranslate"><span class="pre">b1</span> <span class="pre">=</span> <span class="pre">((dist-1)</span> <span class="pre">&gt;&gt;</span> <span class="pre">8)</span> <span class="pre">&lt;&lt;</span> <span class="pre">4</span> <span class="pre">|</span> <span class="pre">(len-3)</span></code>; distance 1-4096, length
+3-18. The decoder rejects a match pointing before the start of the output and checks the CRC.
+<code class="docutils literal notranslate"><span class="pre">tools/omc.py</span></code> packs, unpacks and exports saves.</p>
+</section>
+<section id="ofs1-save-store">
+<h2>OFS1 (save store)<a class="headerlink" href="#ofs1-save-store" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">'OFS1'</span></code>, u32 save count, then per save its 128-byte directory frame (size at 4-7, name at 10-30)
+followed by its data rounded up to 8 KB blocks. The whole container is packed with OMC1 into the
+48 KB area. <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">tools/omc.py</span> <span class="pre">saves</span> <span class="pre">store.bin</span></code> writes one <code class="docutils literal notranslate"><span class="pre">.mcs</span></code> per save from a dump of
+1F010000h.</p>
+</section>
+<section id="och1-cheats">
+<h2>OCH1 (cheats)<a class="headerlink" href="#och1-cheats" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">'OCH1'</span></code>, u32 count, then per code: u32 address, u32 value | enabled &lt;&lt; 16 (96 codes max).</p>
+</section>
+<section id="ocf1-settings">
+<h2>OCF1 (settings)<a class="headerlink" href="#ocf1-settings" title="Link to this heading"></a></h2>
+<p>At 1FF80h: <code class="docutils literal notranslate"><span class="pre">'OCF1'</span></code>, u32 flags. Bits 0-7: what the switch OFF starts at power-on: 0 bypass, 2 bank
+2 (1 = the same, older setting), 3 bank 3. Read by the pre-boot code before anything else; saving
+the cheats keeps this page.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="protocol.html" class="btn btn-neutral float-left" title="Serial protocol" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="internals.html" class="btn btn-neutral float-right" title="Internals" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

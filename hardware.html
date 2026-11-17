@@ -1,0 +1,209 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supported hardware &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Building and installing" href="installing.html" />
+    <link rel="prev" title="Overview" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Supported hardware</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#cartridges">Cartridges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-xplorer-switch-and-the-banks">The Xplorer switch and the banks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#serial-cable">Serial cable</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Supported hardware</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/hardware.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="supported-hardware">
+<h1>Supported hardware<a class="headerlink" href="#supported-hardware" title="Link to this heading"></a></h1>
+<section id="cartridges">
+<h2>Cartridges<a class="headerlink" href="#cartridges" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 25.0%" />
+<col style="width: 45.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Cartridge</p></th>
+<th class="head"><p>Flash</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Xplorer / Xploder V1-V3, Classic, Pro</p></td>
+<td><p>SST 29EE020 (256 KB)</p></td>
+<td><p>Tested. OpenPsxRom in bank 1, a second firmware in bank 2.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Xplorer FX, double chip</p></td>
+<td><p>2 x SST 29EE020</p></td>
+<td><p>Second chip at 1F040000h; 384 KB addressable, the Xplorer registers sit at 1F060000h.
+Detected and reported; writing bank 3 is implemented, not yet used on hardware.</p></td>
+</tr>
+<tr class="row-even"><td><p>Xplorer FX, single 512 KB chip</p></td>
+<td><p>Winbond W29C040 (reported on forums)</p></td>
+<td><p>Not tested. Unknown chips are reported with their ID in the boot log.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Datel (Action Replay / PS Hacker)</p></td>
+<td><p>AMD Am29F010 (128 KB)</p></td>
+<td><p>One bank. Some sectors may be hardware-protected (12 V needed to unprotect).</p></td>
+</tr>
+</tbody>
+</table>
+<p>Known flash chips: AMD Am29F010, ST M29F010B, Fujitsu MBM29F010, SST 39SF010A/020A/040,
+SST 29EE010/29EE020/29LE020, Atmel AT29C010A/020/040A, Winbond W29EE011.</p>
+<p>Sector protection is only shown for AMD-style chips (AMD, ST, Fujitsu), the only ones that have
+it. Atmel, SST and Winbond page-write chips use software data protection, handled by the driver.</p>
+</section>
+<section id="the-xplorer-switch-and-the-banks">
+<h2>The Xplorer switch and the banks<a class="headerlink" href="#the-xplorer-switch-and-the-banks" title="Link to this heading"></a></h2>
+<p>The flash is mapped linearly from 1F000000h. OpenPsxRom calls each 128 KB a <em>bank</em>:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Bank</p></th>
+<th class="head"><p>Address</p></th>
+<th class="head"><p>Content</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>1F000000h-1F01FFFFh</p></td>
+<td><p>OpenPsxRom (64 KB) + saves, cheats, settings</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>1F020000h-1F03FFFFh</p></td>
+<td><p>optional second firmware (e.g. Unirom “ROM2”, built for this address)</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>1F040000h-1F05FFFFh</p></td>
+<td><p>double-chip Xplorer FX only: second chip</p></td>
+</tr>
+</tbody>
+</table>
+<p>At power-on the BIOS calls the cartridge’s pre-boot entry. OpenPsxRom reads the Xplorer switch
+(bit 0 of 1F060000h):</p>
+<ul class="simple">
+<li><p>switch <strong>ON</strong>: OpenPsxRom starts;</p></li>
+<li><p>switch <strong>OFF</strong>: what <em>Boot options &gt; Switch OFF at power-on</em> says: <strong>bypass</strong> (default: the
+cartridge stays invisible, normal boot), <strong>ROM bank 2</strong> or <strong>ROM bank 3</strong>. Before jumping, the
+pre-boot code checks the firmware’s “Licensed by Sony” header and that its entry point lies inside
+its bank; otherwise it falls back to bypass, so an empty or damaged bank never blocks the boot.</p></li>
+</ul>
+<p>A firmware is position-dependent: only images built for 1F020000h (or 1F040000h) can run from bank
+2 (or 3). Unirom’s own installer always writes bank 1: use <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/rom</span></code> with OpenPsxRom, which
+detects the target bank (see <a class="reference internal" href="installing.html"><span class="doc">Building and installing</span></a>).</p>
+</section>
+<section id="serial-cable">
+<h2>Serial cable<a class="headerlink" href="#serial-cable" title="Link to this heading"></a></h2>
+<p>SIO1, 115200 bauds 8N1, 3.3 V levels. PS1 serial port pins: 1 RXD (to the adapter’s TX), 4 TXD
+(to the adapter’s RX), 5 CTS (the PS1 only transmits when the PC raises RTS), 7 GND. Pin 2 is
++3.5 V: do not connect it to the adapter.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="installing.html" class="btn btn-neutral float-right" title="Building and installing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

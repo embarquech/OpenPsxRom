@@ -1,0 +1,254 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serial protocol &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Formats" href="formats.html" />
+    <link rel="prev" title="Debugging" href="debugging.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Serial protocol</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#handshake">Handshake</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#commands">Commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pcdrv">PCDRV</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Serial protocol</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/protocol.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="serial-protocol">
+<h1>Serial protocol<a class="headerlink" href="#serial-protocol" title="Link to this heading"></a></h1>
+<p>Compatible with <code class="docutils literal notranslate"><span class="pre">nops</span></code> / Unirom 8. Commands are 4 ASCII bytes, matched on a rolling window of
+the last 4 bytes received (leading noise is ignored); integers are 32-bit little-endian.</p>
+<section id="handshake">
+<h2>Handshake<a class="headerlink" href="#handshake" title="Link to this heading"></a></h2>
+<p>For commands with data, the console answers <code class="docutils literal notranslate"><span class="pre">OKV2</span></code> (protocol 2 offered); the PC answers <code class="docutils literal notranslate"><span class="pre">UPV2</span></code>
+within about 150 ms to use it; then the console sends the command’s reply (usually <code class="docutils literal notranslate"><span class="pre">OKAY</span></code>).
+In protocol 2, data goes in 2 KB chunks: the receiver checks each chunk’s checksum and answers
+<code class="docutils literal notranslate"><span class="pre">MORE</span></code> (or <code class="docutils literal notranslate"><span class="pre">ERR!</span></code> to get it again).</p>
+</section>
+<section id="commands">
+<h2>Commands<a class="headerlink" href="#commands" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 14.0%" />
+<col style="width: 22.0%" />
+<col style="width: 34.0%" />
+<col style="width: 15.0%" />
+<col style="width: 15.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Token</p></th>
+<th class="head"><p>nops</p></th>
+<th class="head"><p>Then</p></th>
+<th class="head"><p>Menu</p></th>
+<th class="head"><p>In game</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PING</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/ping</span></code></p></td>
+<td><p>reply <code class="docutils literal notranslate"><span class="pre">PONG</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SBIN</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/bin</span></code>, <code class="docutils literal notranslate"><span class="pre">/poke8/16/32</span></code></p></td>
+<td><p>addr, size, checksum, data</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SEXE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/exe</span></code></p></td>
+<td><p>header, then data</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SROM</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/rom</span></code></p></td>
+<td><p>size, checksum; <code class="docutils literal notranslate"><span class="pre">FITS</span></code> / <code class="docutils literal notranslate"><span class="pre">NOPE</span></code> / <code class="docutils literal notranslate"><span class="pre">UNKN</span></code> / <code class="docutils literal notranslate"><span class="pre">NONE</span></code>; data</p></td>
+<td><p>yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UNSP</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">JUMP</span></code> / <code class="docutils literal notranslate"><span class="pre">CALL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/jmp</span></code> / <code class="docutils literal notranslate"><span class="pre">/jal</span></code></p></td>
+<td><p>address</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DUMP</span></code> / <code class="docutils literal notranslate"><span class="pre">HEXD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/dump</span></code> / <code class="docutils literal notranslate"><span class="pre">/watch</span></code></p></td>
+<td><p>addr, size; data</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">REST</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/reset</span></code></p></td>
+<td><p>jump to the BIOS</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DEBG</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/debug</span></code>, <code class="docutils literal notranslate"><span class="pre">/gdb</span></code></p></td>
+<td><p>installs the debug core</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HALT</span></code> / <code class="docutils literal notranslate"><span class="pre">CONT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/halt</span></code> / <code class="docutils literal notranslate"><span class="pre">/cont</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">HLTD</span></code> / <code class="docutils literal notranslate"><span class="pre">OKAY</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ONLY</span></code></p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">HKEX</span></code> / <code class="docutils literal notranslate"><span class="pre">HKRD</span></code> / <code class="docutils literal notranslate"><span class="pre">HKWR</span></code> / <code class="docutils literal notranslate"><span class="pre">UNHK</span></code></p></td>
+<td><p>hook commands</p></td>
+<td><p>address</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ONLY</span></code></p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MCUP</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/mcup</span></code></p></td>
+<td><p>card, size, checksum, 128 KB</p></td>
+<td><p>yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UNSP</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MCDN</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/mcdown</span></code></p></td>
+<td><p>card; <code class="docutils literal notranslate"><span class="pre">HLTD</span></code>, <code class="docutils literal notranslate"><span class="pre">MCRD</span></code> + addr + size, then a dump</p></td>
+<td><p>yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UNSP</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BAUD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/psxbaud</span> <span class="pre">N</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BPLS</span></code>, N (resent), <code class="docutils literal notranslate"><span class="pre">BACP</span></code> or <code class="docutils literal notranslate"><span class="pre">NOPE</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">FAST</span></code> / <code class="docutils literal notranslate"><span class="pre">MEDI</span></code> / <code class="docutils literal notranslate"><span class="pre">SLOW</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/fast</span></code> / <code class="docutils literal notranslate"><span class="pre">/medi</span></code> / <code class="docutils literal notranslate"><span class="pre">/slow</span></code></p></td>
+<td><p>518400 / 414720 / 115200 bauds</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SHOT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tools/psxshot.py</span></code></p></td>
+<td><p>x, y, w, h (w = 0: the screen); reply addr, w, h</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+</tr>
+</tbody>
+</table>
+<p>A speed change applies to the next command only; the link then returns to 115200, where every
+<code class="docutils literal notranslate"><span class="pre">nops</span></code> session starts. <code class="docutils literal notranslate"><span class="pre">FLAT</span></code> and <code class="docutils literal notranslate"><span class="pre">GAPS</span></code> (optional EXE loading modes) answer <code class="docutils literal notranslate"><span class="pre">UNSP</span></code>.</p>
+</section>
+<section id="pcdrv">
+<h2>PCDRV<a class="headerlink" href="#pcdrv" title="Link to this heading"></a></h2>
+<p>While <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/m</span></code> runs, a program’s PCDRV <code class="docutils literal notranslate"><span class="pre">break</span></code> sends <code class="docutils literal notranslate"><span class="pre">00</span> <span class="pre">'p'</span></code> + the function code (u32);
+the PC answers <code class="docutils literal notranslate"><span class="pre">OKAY</span></code> then the exchange of that function (file name, handle, length, data).</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="debugging.html" class="btn btn-neutral float-left" title="Debugging" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="formats.html" class="btn btn-neutral float-right" title="Formats" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

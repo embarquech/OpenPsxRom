@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenPsxRom &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Overview" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">OpenPsxRom</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="openpsxrom">
+<h1>OpenPsxRom<a class="headerlink" href="#openpsxrom" title="Link to this heading"></a></h1>
+<p>Open-source firmware for PlayStation 1 cheat cartridges (Xplorer, Action Replay…).</p>
+<p>OpenPsxRom replaces the firmware of a parallel-port cheat cartridge with a free one: a menu to boot
+discs, cheats applied while the game runs, an in-game menu, memory card tools with compressed saves
+kept in the cartridge, several firmwares on one cartridge, and the development features of Unirom
+through the same serial protocol, so the existing <code class="docutils literal notranslate"><span class="pre">nops</span></code> tool works with it.</p>
+<figure class="align-default" id="id1">
+<a class="reference internal image-reference" href="_images/real-hardware.png"><img alt="_images/real-hardware.png" src="_images/real-hardware.png" width="640" />
+</a>
+<figcaption>
+<p><span class="caption-text">OpenPsxRom on a real PlayStation, captured over the serial port with <code class="docutils literal notranslate"><span class="pre">tools/psxshot.py</span></code>.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#highlights">Highlights</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#screens">Screens</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#features">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hardware.html#cartridges">Cartridges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hardware.html#the-xplorer-switch-and-the-banks">The Xplorer switch and the banks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hardware.html#serial-cable">Serial cable</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#building">Building</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#flashing">Flashing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#installing-a-second-firmware">Installing a second firmware</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#recovering-a-cartridge-that-does-not-boot">Recovering a cartridge that does not boot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#running-from-ram">Running from RAM</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="menu.html#boot-options">Boot options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="menu.html#cheats">Cheats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="menu.html#in-game-menu">In-game menu</a></li>
+<li class="toctree-l2"><a class="reference internal" href="menu.html#tools">Tools</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#boot-log">Boot log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#load-and-run-code">Load and run code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#while-a-program-runs">While a program runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#gdb">GDB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#pcdrv">PCDRV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#screenshots">Screenshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#memory-cards">Memory cards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="debugging.html#emulator">Emulator</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="protocol.html#handshake">Handshake</a></li>
+<li class="toctree-l2"><a class="reference internal" href="protocol.html#commands">Commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="protocol.html#pcdrv">PCDRV</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#flash-layout-bank-1">Flash layout (bank 1)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#cartridge-header">Cartridge header</a></li>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#omc1-compressed-data">OMC1 (compressed data)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#ofs1-save-store">OFS1 (save store)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#och1-cheats">OCH1 (cheats)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="formats.html#ocf1-settings">OCF1 (settings)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="internals.html#source-layout">Source layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals.html#boot-sequence">Boot sequence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals.html#memory-map-while-a-game-runs">Memory map while a game runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals.html#resident-core">Resident core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals.html#flash-driver">Flash driver</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="testing.html#level-1-pc-tools-and-rom-image">Level 1: PC tools and ROM image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing.html#level-2-emulator">Level 2: emulator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing.html#level-3-real-console">Level 3: real console</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="status.html#tested-on-real-hardware-xplorer-sst-29ee020">Tested on real hardware (Xplorer, SST 29EE020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="status.html#not-tested-on-hardware-yet">Not tested on hardware yet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="status.html#known-limitations">Known limitations</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>Source code: <a class="reference external" href="https://github.com/embarquech/OpenPsxRom">https://github.com/embarquech/OpenPsxRom</a> (GPL-3.0-or-later).</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overview.html" class="btn btn-neutral float-right" title="Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

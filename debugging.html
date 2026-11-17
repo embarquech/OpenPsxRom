@@ -1,0 +1,231 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debugging &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Serial protocol" href="protocol.html" />
+    <link rel="prev" title="Using the menu" href="menu.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="menu.html">Using the menu</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Debugging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#boot-log">Boot log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#load-and-run-code">Load and run code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#while-a-program-runs">While a program runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gdb">GDB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pcdrv">PCDRV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#screenshots">Screenshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#memory-cards">Memory cards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#emulator">Emulator</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Debugging</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/debugging.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="debugging">
+<h1>Debugging<a class="headerlink" href="#debugging" title="Link to this heading"></a></h1>
+<p>All commands use <code class="docutils literal notranslate"><span class="pre">nops</span></code> v18 (<code class="docutils literal notranslate"><span class="pre">/dest</span> <span class="pre">COMx</span></code>). The link is SIO1 at 115200 bauds, 8N1.</p>
+<section id="boot-log">
+<h2>Boot log<a class="headerlink" href="#boot-log" title="Link to this heading"></a></h2>
+<p>Open a terminal on the port and reset the console:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OpenPsxRom</span> <span class="mf">0.6</span> <span class="p">(</span><span class="n">Nov</span> <span class="mi">17</span> <span class="mi">2026</span> <span class="mi">21</span><span class="p">:</span><span class="mi">58</span><span class="p">:</span><span class="mi">10</span><span class="p">)</span> <span class="n">starting</span>
+<span class="n">BIOS</span><span class="p">:</span> <span class="n">System</span> <span class="n">ROM</span> <span class="n">Version</span> <span class="mf">4.1</span> <span class="mi">12</span><span class="o">/</span><span class="mi">16</span><span class="o">/</span><span class="mi">97</span> <span class="n">E</span>
+<span class="n">Video</span><span class="p">:</span> <span class="n">PAL</span> <span class="p">(</span><span class="mi">50</span> <span class="n">Hz</span><span class="p">)</span>
+<span class="n">Flash</span><span class="p">:</span> <span class="n">SST</span> <span class="mi">29</span><span class="n">EE020</span> <span class="p">(</span><span class="n">ID</span> <span class="n">BF</span><span class="o">/</span><span class="mi">10</span><span class="p">),</span> <span class="n">ROM</span> <span class="n">CRC</span> <span class="mi">183</span><span class="n">F4277</span>
+<span class="n">Flash</span> <span class="o">@</span><span class="mi">40000</span><span class="n">h</span><span class="p">:</span> <span class="n">SST</span> <span class="mi">29</span><span class="n">EE020</span> <span class="p">(</span><span class="n">ID</span> <span class="n">BF</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">Cheats</span><span class="p">:</span> <span class="mi">0</span> <span class="n">codes</span><span class="p">,</span> <span class="n">saves</span> <span class="ow">in</span> <span class="n">flash</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">Switch</span><span class="p">:</span> <span class="n">on</span><span class="p">,</span> <span class="n">off</span> <span class="n">at</span> <span class="n">power</span><span class="o">-</span><span class="n">on</span> <span class="o">=</span> <span class="n">ROM</span> <span class="n">bank</span> <span class="mi">2</span><span class="p">;</span> <span class="n">firmware</span> <span class="ow">in</span> <span class="n">bank</span> <span class="mi">2</span><span class="p">:</span> <span class="n">yes</span><span class="p">,</span> <span class="n">bank</span> <span class="mi">3</span><span class="p">:</span> <span class="n">no</span>
+<span class="n">Pad</span> <span class="mi">1</span><span class="p">:</span> <span class="n">digital</span> <span class="n">pad</span>
+<span class="n">Pad</span> <span class="mi">2</span><span class="p">:</span> <span class="n">none</span>
+<span class="n">Card</span> <span class="mi">1</span><span class="p">:</span> <span class="n">PS1</span> <span class="n">card</span><span class="p">,</span> <span class="mi">3</span> <span class="n">blocks</span> <span class="n">used</span><span class="p">,</span> <span class="mi">12</span> <span class="n">free</span>
+<span class="n">Card</span> <span class="mi">2</span><span class="p">:</span> <span class="n">none</span>
+<span class="n">CD</span><span class="p">:</span> <span class="n">lid</span> <span class="n">closed</span>
+<span class="n">Serial</span><span class="p">:</span> <span class="mi">115200</span> <span class="n">bauds</span><span class="p">,</span> <span class="n">nops</span> <span class="n">commands</span> <span class="n">accepted</span>
+<span class="n">OpenPsxRom</span> <span class="mf">0.6</span> <span class="n">ready</span>
+</pre></div>
+</div>
+</section>
+<section id="load-and-run-code">
+<h2>Load and run code<a class="headerlink" href="#load-and-run-code" title="Link to this heading"></a></h2>
+<p>From the menu:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/exe<span class="w"> </span>program.exe<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">              </span><span class="c1"># upload a PS-EXE and start it</span>
+nops<span class="w"> </span>/bin<span class="w"> </span>data.bin<span class="w"> </span>0x80100000<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">      </span><span class="c1"># upload raw data (v18: file, then address)</span>
+nops<span class="w"> </span>/jmp<span class="w"> </span>0x80100000<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">               </span><span class="c1"># jump to an address</span>
+nops<span class="w"> </span>/dump<span class="w"> </span>0x80010000<span class="w"> </span>0x1000<span class="w"> </span>out.bin<span class="w"> </span>/dest<span class="w"> </span>COMx
+nops<span class="w"> </span>/poke32<span class="w"> </span>0x80100000<span class="w"> </span>0x12345678<span class="w"> </span>/dest<span class="w"> </span>COMx
+</pre></div>
+</div>
+<p>Faster transfers: add <code class="docutils literal notranslate"><span class="pre">/psxbaud</span> <span class="pre">230400</span> <span class="pre">/pcbaud</span> <span class="pre">230400</span></code> to a command (<code class="docutils literal notranslate"><span class="pre">/psxbaud</span></code> switches the
+PS1, <code class="docutils literal notranslate"><span class="pre">/pcbaud</span></code> the PC; both are needed). The console returns to 115200 after that command, and
+after about 3 s without traffic. <code class="docutils literal notranslate"><span class="pre">/fast</span></code> (518400) needs an adapter able to do it.</p>
+</section>
+<section id="while-a-program-runs">
+<h2>While a program runs<a class="headerlink" href="#while-a-program-runs" title="Link to this heading"></a></h2>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/debug<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">                        </span><span class="c1"># install the resident debug core</span>
+nops<span class="w"> </span>/exe<span class="w"> </span>program.exe<span class="w"> </span>/m<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">           </span><span class="c1"># start it and watch its output</span>
+</pre></div>
+</div>
+<p>With the debug core (or the <em>Serial debug in game</em> and <em>printf -&gt; serial</em> boot options for a CD):</p>
+<ul class="simple">
+<li><p>printf/TTY output goes to the serial port;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/dump</span></code>, <code class="docutils literal notranslate"><span class="pre">/bin</span></code>, <code class="docutils literal notranslate"><span class="pre">/poke</span></code>, <code class="docutils literal notranslate"><span class="pre">/exe</span></code>, <code class="docutils literal notranslate"><span class="pre">/jmp</span></code> work while the program runs;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/halt</span></code> freezes it, <code class="docutils literal notranslate"><span class="pre">/cont</span></code> resumes it, <code class="docutils literal notranslate"><span class="pre">/regs</span></code> and <code class="docutils literal notranslate"><span class="pre">/setreg</span></code> read and write its registers;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/hookex</span></code>, <code class="docutils literal notranslate"><span class="pre">/hookread</span></code>, <code class="docutils literal notranslate"><span class="pre">/hookwrite</span></code> set a hardware breakpoint (COP0), <code class="docutils literal notranslate"><span class="pre">/unhook</span></code> removes it;</p></li>
+<li><p>a crash prints the registers on screen and on the serial port;</p></li>
+<li><p>the speed options work as in the menu.</p></li>
+</ul>
+<p>Sent to the menu, the commands that need a running program (<code class="docutils literal notranslate"><span class="pre">/halt</span></code>, <code class="docutils literal notranslate"><span class="pre">/cont</span></code>, hooks) answer
+<code class="docutils literal notranslate"><span class="pre">ONLY</span></code>, as Unirom does.</p>
+</section>
+<section id="gdb">
+<h2>GDB<a class="headerlink" href="#gdb" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/gdb</span></code> puts the console in debug mode and starts a GDB server on TCP port 3333. Connect a
+MIPS-capable GDB (<code class="docutils literal notranslate"><span class="pre">gdb-multiarch</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">target</span> <span class="n">remote</span> <span class="n">localhost</span><span class="p">:</span><span class="mi">3333</span>
+<span class="k">break</span> <span class="n">main</span>
+<span class="k">continue</span>
+<span class="n">info</span> <span class="n">registers</span>
+</pre></div>
+</div>
+<p>The bridge only uses commands OpenPsxRom implements (DEBG, HALT, CONT, DUMP, SBIN, HKEX…);
+<code class="docutils literal notranslate"><span class="pre">break</span></code> instructions halt the program like a software breakpoint. A full GDB session has not
+been tested on hardware yet.</p>
+</section>
+<section id="pcdrv">
+<h2>PCDRV<a class="headerlink" href="#pcdrv" title="Link to this heading"></a></h2>
+<p>Programs can read and write files on the PC through <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/m</span></code>: <code class="docutils literal notranslate"><span class="pre">break</span></code> with code 101h-107h
+(PCinit, PCcreat, PCopen, PCclose, PCread, PCwrite, PClseek); arguments in a1-a3, error in v0,
+result in v1. Both encodings are accepted: PSn00bSDK (<code class="docutils literal notranslate"><span class="pre">break</span> <span class="pre">0,</span> <span class="pre">0x101</span></code>) and the Sony SDK
+(<code class="docutils literal notranslate"><span class="pre">break</span> <span class="pre">0x101</span></code>). The break is caught in the kernel’s exception chain, before the BIOS’s own break
+handling (a development-unit feature that ends in a bus error on retail consoles).</p>
+</section>
+<section id="screenshots">
+<h2>Screenshots<a class="headerlink" href="#screenshots" title="Link to this heading"></a></h2>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>tools/psxshot.py<span class="w"> </span>screen.png<span class="w"> </span>--port<span class="w"> </span>COMx<span class="w"> </span>--nops<span class="w"> </span>path/to/nops.exe
+python<span class="w"> </span>tools/psxshot.py<span class="w"> </span>vram.png<span class="w"> </span>--rect<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">1024</span><span class="w"> </span><span class="m">512</span><span class="w"> </span>--scale<span class="w"> </span><span class="m">1</span><span class="w"> </span>--port<span class="w"> </span>COMx<span class="w"> </span>--nops<span class="w"> </span>...
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">SHOT</span></code> command copies the picture on screen (or any VRAM rectangle) to RAM through the GPU;
+the script fetches it with <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/dump</span></code> and writes a PNG. Works while the menu runs; no TV
+needed.</p>
+</section>
+<section id="memory-cards">
+<h2>Memory cards<a class="headerlink" href="#memory-cards" title="Link to this heading"></a></h2>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/mcdown<span class="w"> </span><span class="m">0</span><span class="w"> </span>card.mcr<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">            </span><span class="c1"># read slot 1 (raw 128 KB image)</span>
+nops<span class="w"> </span>/mcup<span class="w"> </span><span class="m">0</span><span class="w"> </span>card.mcr<span class="w"> </span>/dest<span class="w"> </span>COMx<span class="w">              </span><span class="c1"># write it: ERASES the card</span>
+</pre></div>
+</div>
+<p>Every frame is read back after writing and rewritten if needed (a card may still be busy with the
+previous frame). Reading a card takes several seconds before the transfer starts.</p>
+</section>
+<section id="emulator">
+<h2>Emulator<a class="headerlink" href="#emulator" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tools/run_duck.ps1</span></code> boots <code class="docutils literal notranslate"><span class="pre">build/openrom.rom</span></code> in a DuckStation copy configured for Xplorer
+cartridge emulation and prints the TTY log; <code class="docutils literal notranslate"><span class="pre">tools/shot.ps1</span></code> captures its window. The <code class="docutils literal notranslate"><span class="pre">SHOT</span></code>
+compile option (<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">DEFS=-DSHOT=n</span></code>) opens a screen directly, for screenshots without a pad.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="menu.html" class="btn btn-neutral float-left" title="Using the menu" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="protocol.html" class="btn btn-neutral float-right" title="Serial protocol" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

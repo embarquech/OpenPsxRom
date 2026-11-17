@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Using the menu &mdash; OpenPsxRom documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Debugging" href="debugging.html" />
+    <link rel="prev" title="Building and installing" href="installing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OpenPsxRom
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Supported hardware</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Using the menu</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#boot-options">Boot options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cheats">Cheats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#in-game-menu">In-game menu</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tools">Tools</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="debugging.html">Debugging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocol.html">Serial protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="status.html">Status</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OpenPsxRom</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Using the menu</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/menu.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="using-the-menu">
+<h1>Using the menu<a class="headerlink" href="#using-the-menu" title="Link to this heading"></a></h1>
+<a class="reference internal image-reference" href="_images/menu.png"><img alt="_images/menu.png" src="_images/menu.png" width="480" />
+</a>
+<p>Controls: ▲▼ move, cross select or change, circle back. The bottom line shows the serial
+status (<em>waiting for NOPS (115200)</em>, last command, transfer progress).</p>
+<dl class="simple">
+<dt>Boot CD</dt><dd><p>Starts the disc: reads <code class="docutils literal notranslate"><span class="pre">SYSTEM.CNF</span></code>, applies its kernel configuration (<code class="docutils literal notranslate"><span class="pre">SetConf</span></code>), installs
+the resident core if an option needs it, loads and starts the executable.</p>
+</dd>
+<dt>Unlock drive + boot CD</dt><dd><p>Unlocks the drive for burned discs (no modchip), then boots.</p>
+</dd>
+</dl>
+<section id="boot-options">
+<h2>Boot options<a class="headerlink" href="#boot-options" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="_images/boot-options.png"><img alt="_images/boot-options.png" src="_images/boot-options.png" width="480" />
+</a>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>In-game menu (switch)</p></td>
+<td><p>Xplorer switch off then on while a game runs opens the in-game menu.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Serial debug in game</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nops</span></code> commands work while the game runs (dump, upload, halt, breakpoints).</p></td>
+</tr>
+<tr class="row-even"><td><p>printf -&gt; serial</p></td>
+<td><p>Game and BIOS printf output goes to the serial port.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Crash screen</p></td>
+<td><p>Registers on screen and on the serial port if the game crashes.</p></td>
+</tr>
+<tr class="row-even"><td><p>Video mode</p></td>
+<td><p><em>as the game</em>, <em>force PAL (50 Hz)</em> or <em>force NTSC (60 Hz)</em>, for imports.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Switch OFF at power-on</p></td>
+<td><p><em>bypass</em>, <em>ROM bank 2</em> or <em>ROM bank 3</em>; only banks holding a firmware are offered. Stored in
+the cartridge, used at power-on.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The first five options apply when a CD is booted from the menu; the last one is saved in the flash
+when leaving the screen. The menu itself is displayed in PAL or NTSC from the BIOS region letter.</p>
+</section>
+<section id="cheats">
+<h2>Cheats<a class="headerlink" href="#cheats" title="Link to this heading"></a></h2>
+<p>GameShark codes (address + value), each one on/off, stored in the flash. The resident core applies
+the enabled codes on every interrupt while the game runs. Supported code types: 80 (16-bit write),
+30 (8-bit write), 10/11/20/21 (increment/decrement), D0-D3/E0-E3 (conditions on the next code), 50
+(serial repeater).</p>
+</section>
+<section id="in-game-menu">
+<h2>In-game menu<a class="headerlink" href="#in-game-menu" title="Link to this heading"></a></h2>
+<p>With the option on, switching the Xplorer switch off then on while a game runs freezes the game and
+shows a menu drawn over it: resume, cheats on/off, code finder (search a value in the game RAM,
+change it in the game, search again among the candidates, then turn a result into a cheat).</p>
+</section>
+<section id="tools">
+<h2>Tools<a class="headerlink" href="#tools" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="_images/tools.png"><img alt="_images/tools.png" src="_images/tools.png" width="480" />
+</a>
+<dl class="simple">
+<dt>CD browser</dt><dd><p>Lists the disc; runs an <code class="docutils literal notranslate"><span class="pre">.EXE</span></code>, flashes a <code class="docutils literal notranslate"><span class="pre">.ROM</span></code> (bank chosen as for <code class="docutils literal notranslate"><span class="pre">/rom</span></code>), plays an
+<code class="docutils literal notranslate"><span class="pre">.STR</span></code> video.</p>
+</dd>
+<dt>CD audio player</dt><dd><p>Plays audio tracks.</p>
+</dd>
+<dt>VRAM viewer</dt><dd><p>Shows the whole video memory, scrollable.</p>
+</dd>
+<dt>Memory cards</dt><dd><p>Two panes: the memory card (left) and the saves kept in the cartridge (right), with animated
+icons; copy, delete, free blocks. Writes are verified frame by frame.</p>
+</dd>
+<dt>Controller test</dt><dd><p>Buttons and analog sticks of both pads (digital pad, DualShock, mouse…).</p>
+</dd>
+<dt>Hex editor</dt><dd><p>RAM and cartridge viewer.</p>
+</dd>
+<dt>Cartridge info</dt><dd><p>Flash chip(s), IDs, protection, ROM CRC.</p>
+</dd>
+</dl>
+<a class="reference internal image-reference" href="_images/cartridge.png"><img alt="_images/cartridge.png" src="_images/cartridge.png" width="480" />
+</a>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installing.html" class="btn btn-neutral float-left" title="Building and installing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="debugging.html" class="btn btn-neutral float-right" title="Debugging" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, embarquech (GPL-3.0-or-later).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
