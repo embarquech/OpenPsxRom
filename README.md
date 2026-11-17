@@ -174,6 +174,16 @@ second-chip detection, memory card writes with read-back verification, screensho
 Not yet tested on hardware: in-game menu, cheats, code finder, card manager, CD audio, STR player,
 PCDRV, GDB breakpoints.
 
+## Documentation
+
+The full documentation (user guide, debugging, serial protocol, formats, internals, tests) is in
+[`docs/`](docs/), written for Sphinx:
+
+```
+pip install sphinx sphinx-rtd-theme
+python -m sphinx -b html docs docs/_build/html
+```
+
 ## Credits and license
 
 OpenPsxRom — Copyright (C) 2026 embarquech.

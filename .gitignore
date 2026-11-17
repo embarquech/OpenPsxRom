@@ -34,3 +34,6 @@ __pycache__/
 *.rom
 *.mcr
 *.exe
+
+# Sphinx output
+/docs/_build/
