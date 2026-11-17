@@ -176,8 +176,10 @@ PCDRV, GDB breakpoints.
 
 ## Documentation
 
+**Online: https://embarquech.github.io/OpenPsxRom/**
+
 The full documentation (user guide, debugging, serial protocol, formats, internals, tests) is in
-[`docs/`](docs/), written for Sphinx:
+[`docs/`](docs/), written for Sphinx, and published on the `gh-pages` branch:
 
 ```
 pip install sphinx sphinx-rtd-theme
