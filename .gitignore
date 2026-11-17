@@ -1,0 +1,35 @@
+# Whitelist: only the project sources are published.
+# Never commit memory card dumps, firmware dumps (Xplorer FCD, Unirom...), BIOS images,
+# build outputs or machine-specific scripts.
+/*
+!/.gitignore
+!/LICENSE
+!/README.md
+!/Makefile
+!/rom.ld
+!/exe.ld
+!/exe_lo.ld
+!/src/
+!/core/
+!/test/
+!/tools/
+!/docs/
+
+/tools/*
+!/tools/elf2exe.py
+!/tools/mkdisc.py
+!/tools/packrom.py
+!/tools/pad.py
+!/tools/omc.py
+!/tools/run_duck.ps1
+!/tools/shot.ps1
+!/tools/boot_test.ps1
+!/tools/rom2_test.ps1
+!/tools/psxshot.py
+
+__pycache__/
+*.o
+*.bin
+*.rom
+*.mcr
+*.exe

@@ -1,0 +1,74 @@
+// Minimal PS1 hardware definitions (bare metal).
+#pragma once
+#include <stdint.h>
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef int8_t s8;
+typedef int16_t s16;
+typedef int32_t s32;
+
+#define REG32(a) (*(volatile u32 *)(a))
+#define REG16(a) (*(volatile u16 *)(a))
+#define REG8(a) (*(volatile u8 *)(a))
+
+#define GP0 REG32(0x1F801810)
+#define GP1 REG32(0x1F801814)
+#define GPUREAD GP0
+#define GPUSTAT GP1
+
+#define I_STAT REG32(0x1F801070)
+#define I_MASK REG32(0x1F801074)
+
+#define DMA_DPCR REG32(0x1F8010F0)
+#define DMA_DICR REG32(0x1F8010F4)
+#define DMA2_MADR REG32(0x1F8010A0)
+#define DMA2_BCR REG32(0x1F8010A4)
+#define DMA2_CHCR REG32(0x1F8010A8)
+#define DMA6_MADR REG32(0x1F8010E0)
+#define DMA6_BCR REG32(0x1F8010E4)
+#define DMA6_CHCR REG32(0x1F8010E8)
+#define DMA4_MADR REG32(0x1F8010C0)
+#define DMA4_BCR REG32(0x1F8010C4)
+#define DMA4_CHCR REG32(0x1F8010C8)
+
+#define T2_VAL REG32(0x1F801120)
+#define T2_MODE REG32(0x1F801124)
+#define T2_TGT REG32(0x1F801128)
+
+#define SIO0_DATA REG8(0x1F801040)
+#define SIO0_STAT REG16(0x1F801044)
+#define SIO0_MODE REG16(0x1F801048)
+#define SIO0_CTRL REG16(0x1F80104A)
+#define SIO0_BAUD REG16(0x1F80104E)
+
+#define SPU_BASE 0x1F801C00
+#define SPU_VOICE(n, r) REG16(SPU_BASE + (n) * 16 + (r))
+#define SPU_MAIN_VOL_L REG16(0x1F801D80)
+#define SPU_MAIN_VOL_R REG16(0x1F801D82)
+#define SPU_REVERB_VOL_L REG16(0x1F801D84)
+#define SPU_REVERB_VOL_R REG16(0x1F801D86)
+#define SPU_KON0 REG16(0x1F801D88)
+#define SPU_KON1 REG16(0x1F801D8A)
+#define SPU_KOFF0 REG16(0x1F801D8C)
+#define SPU_KOFF1 REG16(0x1F801D8E)
+#define SPU_PMON0 REG16(0x1F801D90)
+#define SPU_PMON1 REG16(0x1F801D92)
+#define SPU_NON0 REG16(0x1F801D94)
+#define SPU_NON1 REG16(0x1F801D96)
+#define SPU_EON0 REG16(0x1F801D98)
+#define SPU_EON1 REG16(0x1F801D9A)
+#define SPU_ADDR REG16(0x1F801DA6)
+#define SPU_DATA REG16(0x1F801DA8)
+#define SPU_CTRL REG16(0x1F801DAA)
+#define SPU_XFER REG16(0x1F801DAC)
+#define SPU_STAT REG16(0x1F801DAE)
+#define SPU_CD_VOL_L REG16(0x1F801DB0)
+#define SPU_CD_VOL_R REG16(0x1F801DB2)
+#define SPU_EXT_VOL_L REG16(0x1F801DB4)
+#define SPU_EXT_VOL_R REG16(0x1F801DB6)
+
+#define SCRATCH ((u8 *)0x1F800000)
+
+int bios_printf(const char *fmt, ...);
