@@ -261,7 +261,7 @@ static void cmd_jump(int call) {
 }
 
 static u32 cur_div = 18;
-static void set_baud_now(u32 div) { while (!(REG32(0x1F801054) & 4)); sio_init(div); cur_div = div; }
+static void set_baud_now(u32 div) { sio_set_div(div); cur_div = div; }
 static void set_baud(u32 div) {
     if (div == cur_div) return;           // nops sends SLOW before every command
     // the PC reopens its port 100 ms after the token: switch within that time
@@ -281,9 +281,12 @@ static void cmd_baud(void) {
     u32 div = n ? 2073600u / n : 0;
     if (aborted || div < 1 || div > 73 || 2073600u / div != n) { sio_puts("NOPE"); flush_rx(); return; }
     sio_puts("BACP");
+    // The PC switches as soon as it sees BACP and sends the next command right away: drop only
+    // the copies of N already received (no waiting: waiting would eat that command, received at
+    // the old speed), then change the divisor alone. Stray bytes are ignored by the 4-byte window.
     while (!(REG32(0x1F801054) & 4));
-    flush_rx();                                       // the copies of N sent meanwhile
-    sio_init(div);
+    while (sio_rx_ready()) (void)sio_getc();
+    sio_set_div(div);
     cur_div = div;
     status("serial custom speed, divisor", div, 0);
 }

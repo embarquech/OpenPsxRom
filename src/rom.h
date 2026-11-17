@@ -48,6 +48,7 @@ void gfx_icon(int slot, int frame, int x, int y);
 
 // sio.c (SIO1 serial, NOPS protocol)
 void sio_init(u32 baud_div);
+void sio_set_div(u32 baud_div);   // speed change without resetting the port
 int sio_rx_ready(void);
 u8 sio_getc(void);
 void sio_putc(u8 c);

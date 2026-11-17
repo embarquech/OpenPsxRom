@@ -110,7 +110,9 @@ Keep a dump of your original firmware first: `nops /dump 0x1F000000 0x40000 back
 
 All commands use [`nops`](https://github.com/JonathanDotCel/unirom8_bootdisc_and_firmware_for_ps1)
 v18 (`/dest COMx`; older builds take the port as last argument). The serial line is SIO1 at
-115200 bauds, 8N1 (`/psxbaud 230400` for twice the speed with USB adapters that cannot do 518400).
+115200 bauds, 8N1. For twice the speed with USB adapters that cannot do 518400, add
+`/psxbaud 230400 /pcbaud 230400` to a command (`/psxbaud` switches the PS1, `/pcbaud` the PC:
+both are needed); the console goes back to 115200 after that command.
 
 **Boot log.** Open a terminal on the port at 115200 and reset the console: OpenPsxRom prints the
 BIOS version, the flash chip(s) and their IDs, the switch and bank settings, pads, memory cards, CD.
@@ -118,7 +120,7 @@ BIOS version, the flash chip(s) and their IDs, the switch and bank settings, pad
 **Load and run code** (from the OpenPsxRom menu):
 ```
 nops /exe program.exe /dest COMx          # upload a PS-EXE and start it
-nops /bin 0x80100000 data.bin /dest COMx   # upload raw data to RAM
+nops /bin data.bin 0x80100000 /dest COMx   # upload raw data to RAM (v18: file, then address)
 nops /jump 0x80100000 /dest COMx           # jump to an address
 nops /dump 0x80010000 0x1000 out.bin /dest COMx   # read RAM, ROM or the cartridge (1F000000h)
 ```
@@ -150,6 +152,18 @@ nops /mcup 0 card.mcr /dest COMx           # write it (every frame verified by r
 
 **Emulator**: `tools/run_duck.ps1` boots `build/openrom.rom` in a DuckStation copy configured
 for Xplorer cartridge emulation and prints the TTY log; `tools/shot.ps1` captures its window.
+
+## Tests
+
+Three levels, from no hardware at all to the real console:
+
+| Level | Command | What it checks |
+|---|---|---|
+| 1. PC tools and ROM image | `python tests/test_tools.py` | OMC1/LZSS round trips and damaged data, PS-EXE header, boot disc ISO layout, screenshot colours; the built ROM: size, 64 KB limit, Sony headers, entry points, packed payload |
+| 2. Emulator | `powershell -File tests\emu_test.ps1 [-Rom2 FILE]` | DuckStation with Xplorer emulation: complete boot log; switch OFF = bypass, bank 2, bank 3; empty bank or invalid setting refused |
+| 3. Real console | `python tests/hw_test.py --port COMx --nops nops.exe [--card]` | PING/PONG, ONLY reply, cartridge header, 64 KB RAM round trip, poke, 230400 baud and return to 115200, SHOT screenshot, memory card read |
+
+Level 3 only writes to RAM by default; `--flash ROM` and `--mcup CARD` (erases the card) are opt-in.
 
 ## Status
 

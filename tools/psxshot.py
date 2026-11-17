@@ -33,6 +33,24 @@ def ask_shot(port, rect):
     return struct.unpack("<3I", r)
 
 
+def to_rgb(v):
+    """One PS1 15-bit pixel (0BBBBBGGGGGRRRRR) -> (r, g, b) 8-bit."""
+    r, g, b = v & 31, (v >> 5) & 31, (v >> 10) & 31
+    return (r << 3 | r >> 2, g << 3 | g >> 2, b << 3 | b >> 2)
+
+
+def to_image(data, w, h, scale=1):
+    """Raw VRAM pixels (2 bytes each, little-endian) -> PIL image."""
+    from PIL import Image
+    img = Image.new("RGB", (w, h))
+    px = img.load()
+    for i in range(w * h):
+        px[i % w, i // w] = to_rgb(data[2 * i] | data[2 * i + 1] << 8)
+    if scale > 1:
+        img = img.resize((w * scale, h * scale), Image.NEAREST)
+    return img
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("out", help="PNG file to write")
@@ -55,16 +73,7 @@ def main():
         sys.exit("dump failed")
     data = open(raw, "rb").read()[:size]
 
-    from PIL import Image
-    img = Image.new("RGB", (w, h))
-    px = img.load()
-    for i in range(w * h):
-        v = data[2 * i] | data[2 * i + 1] << 8          # 0BBBBBGGGGGRRRRR
-        r, g, b = v & 31, (v >> 5) & 31, (v >> 10) & 31
-        px[i % w, i // w] = (r << 3 | r >> 2, g << 3 | g >> 2, b << 3 | b >> 2)
-    if a.scale > 1:
-        img = img.resize((w * a.scale, h * a.scale), Image.NEAREST)
-    img.save(a.out)
+    to_image(data, w, h, a.scale).save(a.out)
     print("written", a.out)
 
 

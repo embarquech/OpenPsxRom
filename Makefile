@@ -34,7 +34,7 @@ build/openrom.elf: $(OBJ) rom.ld
 	$(CC) $(CFLAGS) -T rom.ld -Wl,--gc-sections $(OBJ) -o $@ -lgcc
 build/openrom.rom: build/openrom.elf
 	$(OBJCOPY) -O binary -j .header -j .romx -j .text -j .rodata -j .data $< build/openrom.raw
-	python tools/packrom.py build/openrom.elf build/openrom.raw build/openrom.packed
+	python tools/packrom.py build/openrom.elf build/openrom.raw build/openrom.packed $(TOOLS)nm
 	python tools/pad.py build/openrom.packed $@ 131072
 
 # boot disc: the same menu as an EXE (main.c with -DBOOTDISC) + the ROM image to install

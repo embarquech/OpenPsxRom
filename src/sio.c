@@ -16,6 +16,12 @@ void sio_init(u32 div) {
     SIO_CTRL = 0x05;            // TX + RX enable (as Unirom)
     for (int i = 0; i < 16 && (SIO_STAT & 2); i++) (void)SIO_DATA;
 }
+// Speed change on a running link: last byte sent, then only the divisor changes (no reset, no
+// flush: the PC may already be sending the next command at the new speed).
+void sio_set_div(u32 div) {
+    while (!(SIO_STAT & 4));
+    SIO_BAUD = div;
+}
 int sio_rx_ready(void) { return (SIO_STAT & 2) != 0; }
 u8 sio_getc(void) { while (!(SIO_STAT & 2)); return SIO_DATA; }
 void sio_putc(u8 c) { while (!(SIO_STAT & 1)); SIO_DATA = c; }

@@ -83,6 +83,8 @@ def unpack(data):
                 d = (data[i] | (data[i + 1] >> 4) << 8) + 1
                 l = (data[i + 1] & 15) + 3
                 i += 2
+                if d > len(out):                            # same check as src/lz.c
+                    sys.exit('damaged data: match before the start of the output')
                 for _ in range(l):
                     out.append(out[-d])
     out = bytes(out[:n])

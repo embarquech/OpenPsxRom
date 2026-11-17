@@ -1098,6 +1098,7 @@ static void boot_log(void) {
 int main(void) {
     sio_init(0x12);
     sio_puts("\r\nOpenPsxRom " OPENROM_VERSION " (" __DATE__ " " __TIME__ ") starting\r\n");
+    dbg("OpenPsxRom " OPENROM_VERSION " (" __DATE__ " " __TIME__ ") starting");
     pad_init();
     gfx_init();
     dbg("[OpenPsxRom menu]");
