@@ -106,9 +106,19 @@ static int confirm(const char *title, const char *l1, const char *l2) {
 
 // ---------------------------------------------------------------- cartridge
 static void screen_cart(void) {
-    u8 mfr, dev, prot[8];
+    u8 mfr, dev, prot[8], m2, d2;
     int known = flash_identify(&mfr, &dev);
-    flash_protect(prot);
+    // hardware sector protection only exists on AMD-style chips (Am29F010 of Datel carts);
+    // Atmel/SST/Winbond page chips use software data protection: nothing to read per sector
+    int lockable = mfr == 0x01 || mfr == 0x20 || mfr == 0x04;
+    if (lockable) flash_protect(prot);
+    // a second chip only if the first one is smaller than 512 KB (else 40000h is the same chip)
+    int chip2 = flash_chip_kb(mfr, dev) < 512 && flash_identify_at(0x40000, &m2, &d2);
+    if (chip2) {                                       // a single chip also answers there (wrap)
+        const volatile u8 *a = (const volatile u8 *)FLASH_BASE, *b = a + 0x40000;
+        chip2 = 0;
+        for (u32 i = 0; i < 0x1000 && !chip2; i++) if (a[i] != b[i]) chip2 = 1;
+    }
     u32 crc = crc32((const void *)FLASH_BASE, FLASH_SIZE);
     for (;;) {
         frame_begin("Cartridge");
@@ -118,12 +128,22 @@ static void screen_cart(void) {
         p = fmt_hex(p, mfr, 2); p = fmt_str(p, "/"); fmt_hex(p, dev, 2);
         gfx_text(16, y, C_TEXT, s); y += 12;
         gfx_text(16, y, known ? C_OK : C_ERR, flash_chip_name(mfr, dev)); y += 12;
-        p = fmt_str(s, "Protected  ");
-        int any = 0;
-        for (int i = 0; i < 8; i++) if (prot[i]) { *p++ = '0' + i; *p++ = ' '; any = 1; }
-        if (!any) p = fmt_str(p, "none");
-        *p = 0;
-        gfx_text(16, y, any ? C_ERR : C_OK, s); y += 12;
+        if (lockable) {
+            p = fmt_str(s, "Protected  ");
+            int any = 0;
+            for (int i = 0; i < 8; i++) if (prot[i]) { *p++ = '0' + i; *p++ = ' '; any = 1; }
+            if (!any) p = fmt_str(p, "none");
+            *p = 0;
+            gfx_text(16, y, any ? C_ERR : C_OK, s); y += 12;
+        } else {
+            gfx_text(16, y, C_DIM, "Protection software (no sector lock)"); y += 12;
+        }
+        if (chip2) {
+            p = fmt_str(s, "Chip 2     ");
+            p = fmt_hex(p, m2, 2); p = fmt_str(p, "/"); p = fmt_hex(p, d2, 2);
+            p = fmt_str(p, " at 1F040000h");
+            gfx_text(16, y, C_OK, s); y += 12;
+        }
         p = fmt_str(s, "ROM CRC32  "); fmt_hex(p, crc, 8);
         gfx_text(16, y, C_TEXT, s); y += 24;
         gfx_text(16, y, C_DIM, "Flash a new ROM from the PC with:"); y += 12;
