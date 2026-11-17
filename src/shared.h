@@ -26,6 +26,7 @@ typedef struct {
     unsigned int cand_n;            // code finder: candidates kept
     unsigned int cand_width;        // 1 or 2 bytes
     unsigned int bp_entry;          // core's breakpoint handler (for the 80000040h vector)
+    unsigned int baud_div;          // in-game serial divisor after BAUD/FAST/MEDI (0 or 18: 115200)
     unsigned int nc;                // cheat codes
     unsigned int c_addr[MAXC];
     unsigned short c_val[MAXC];

@@ -321,9 +321,13 @@ void sio_poll(void) {
             status("debug core installed (next /exe keeps it)", -1, -1);
             break;
         }
-        case TOK('Q','Q','Q','Q'):
+        // only meaningful while a program runs under the debug core (as Unirom: "ONLY")
         case TOK('H','A','L','T'): case TOK('C','O','N','T'): case TOK('H','K','R','D'):
         case TOK('H','K','W','R'): case TOK('H','K','E','X'): case TOK('U','N','H','K'):
+            sio_puts("ONLY");
+            status("only while a program runs (nops /debug first)", -1, -1);
+            break;
+        case TOK('Q','Q','Q','Q'):
         case TOK('F','L','A','T'): case TOK('G','A','P','S'):
             sio_puts("UNSP");
             status("command not supported yet", -1, -1);

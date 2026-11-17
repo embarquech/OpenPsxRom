@@ -58,6 +58,12 @@ static int rx_ready(void) { return (SIO_STAT & 2) != 0; }
 static u8 getc_(void) { while (!(SIO_STAT & 2)); return SIO_DATA; }
 static int getc_to(u32 n) { while (n--) if (SIO_STAT & 2) return SIO_DATA; return -1; }
 static void putc_(u8 c) { while (!(SIO_STAT & 1)); SIO_DATA = c; }
+// serial speed while a program runs (nops /fast, /medi, /psxbaud): divisor of 2073600 bauds
+static void set_div(u32 d) {
+    while (!(SIO_STAT & 4));                           // last byte fully sent
+    REG16(0x1F80105E) = (u16)d;
+    SH->baud_div = d;
+}
 static void puts_(const char *s) { while (*s) putc_((u8)*s++); }
 static u32 rx32(void) { u32 v = 0; for (int i = 0; i < 4; i++) v |= (u32)getc_() << (8 * i); return v; }
 static void tx32(u32 v) { for (int i = 0; i < 4; i++) putc_((u8)(v >> (8 * i))); }
@@ -188,9 +194,26 @@ int rom_feed(void) {
     case TOK('U','N','H','K'): accept("OKAY"); MTC0(7, 0); break;
     case TOK('S','R','O','M'): case TOK('M','C','U','P'): case TOK('M','C','D','N'):
         puts_("UNSP"); break;
+    // speed for the next command (then back to 115200, where every nops session starts)
+    case TOK('F','A','S','T'): set_div(4); SH->window = 0; return 1;      // 518400
+    case TOK('M','E','D','I'): set_div(5); SH->window = 0; return 1;      // 414720
+    case TOK('S','L','O','W'): set_div(18); SH->window = 0; return 1;     // 115200
+    case TOK('B','A','U','D'): {                       // nops /psxbaud N: BPLS, N (resent), BACP|NOPE
+        puts_("BPLS");
+        u32 n = rx32();
+        u32 div = n ? 2073600u / n : 0;
+        if (div < 1 || div > 73 || 2073600u / div != n) { puts_("NOPE"); SH->window = 0; return 1; }
+        puts_("BACP");
+        while (!(SIO_STAT & 4));
+        while (rx_ready()) (void)SIO_DATA;            // the copies of N sent meanwhile
+        set_div(div);
+        SH->window = 0;
+        return 1;
+    }
     default: return 0;
     }
     SH->window = 0;
+    if (SH->baud_div && SH->baud_div != 18) set_div(18);
     return 1;
 }
 
