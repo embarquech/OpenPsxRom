@@ -8,11 +8,11 @@ Boot log
 
 Open a terminal on the port and reset the console::
 
-   OpenPsxRom 0.6 (Nov 17 2026 21:58:10) starting
+   OpenPsxRom 0.7 (Nov 20 2026 10:00:00) starting
    BIOS: System ROM Version 4.1 12/16/97 E
    Video: PAL (50 Hz)
    Flash: SST 29EE020 (ID BF/10), ROM CRC 183F4277
-   Flash @40000h: SST 29EE020 (ID BF/10)
+   Flash @40000h: second chip present (not probed)
    Cheats: 0 codes, saves in flash: 0
    Switch: on, off at power-on = ROM bank 2; firmware in bank 2: yes, bank 3: no
    Pad 1: digital pad
@@ -21,7 +21,7 @@ Open a terminal on the port and reset the console::
    Card 2: none
    CD: lid closed
    Serial: 115200 bauds, nops commands accepted
-   OpenPsxRom 0.6 ready
+   OpenPsxRom 0.7 ready
 
 Load and run code
 -----------------

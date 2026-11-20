@@ -13,7 +13,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/documentation_options.js?v=48f8e935"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -56,6 +56,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#handshake">Handshake</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#commands">Commands</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pcdrv">PCDRV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#opx1-extended-link-tools-psx-py">OPX1 extended link (<code class="docutils literal notranslate"><span class="pre">tools/psx.py</span></code>)</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="formats.html">Formats</a></li>
@@ -217,6 +218,136 @@ In protocol 2, data goes in 2 KB chunks: the receiver checks each chunk’s chec
 <h2>PCDRV<a class="headerlink" href="#pcdrv" title="Link to this heading"></a></h2>
 <p>While <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/m</span></code> runs, a program’s PCDRV <code class="docutils literal notranslate"><span class="pre">break</span></code> sends <code class="docutils literal notranslate"><span class="pre">00</span> <span class="pre">'p'</span></code> + the function code (u32);
 the PC answers <code class="docutils literal notranslate"><span class="pre">OKAY</span></code> then the exchange of that function (file name, handle, length, data).</p>
+</section>
+<section id="opx1-extended-link-tools-psx-py">
+<h2>OPX1 extended link (<code class="docutils literal notranslate"><span class="pre">tools/psx.py</span></code>)<a class="headerlink" href="#opx1-extended-link-tools-psx-py" title="Link to this heading"></a></h2>
+<p>OpenPsxRom’s own client, next to <code class="docutils literal notranslate"><span class="pre">nops</span></code> (everything above is unchanged: <code class="docutils literal notranslate"><span class="pre">nops</span></code> never sends
+<code class="docutils literal notranslate"><span class="pre">OPX1</span></code>). The PC sends the token <code class="docutils literal notranslate"><span class="pre">OPX1</span></code> at 115200 baud; the console answers <code class="docutils literal notranslate"><span class="pre">OPXA</span></code> and both
+then exchange <em>frames</em>, until <code class="docutils literal notranslate"><span class="pre">END</span></code>, a flash, an EXE start, a reset or about 3 s of silence:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>A5h, cmd (u8), len (u16), payload[len], CRC32 (u32, zlib) of cmd..payload     little-endian
+</pre></div>
+</div>
+<p>Each request gets exactly one answer frame with the same <code class="docutils literal notranslate"><span class="pre">cmd</span></code>; its payload is a status byte
+(0 ok, 1 damaged frame, 2 bad arguments, 3 refused, 4 failed, 5 unknown command) followed by the
+data. The PC sends the next request only once it has the answer. A frame damaged on the way to the
+console is answered with <code class="docutils literal notranslate"><span class="pre">cmd</span></code> FFh, status 1; one damaged on the way back fails its CRC: in both
+cases the PC simply sends the request again (every request can be repeated safely). A PC that lost
+the session can send <code class="docutils literal notranslate"><span class="pre">OPX1</span></code> again inside it: the console answers <code class="docutils literal notranslate"><span class="pre">OPXA</span></code> and goes on.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 6.0%" />
+<col style="width: 10.0%" />
+<col style="width: 42.0%" />
+<col style="width: 42.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>cmd</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Request payload</p></th>
+<th class="head"><p>Answer data</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PING</span></code></p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">INFO</span></code></p></td>
+<td></td>
+<td><p>text, one <code class="docutils literal notranslate"><span class="pre">key=value</span></code> per line: version, build (bank1 / bank3 / arcart), flash chip and
+ID, size, banks 2 and 3 available, <code class="docutils literal notranslate"><span class="pre">rombuf</span></code> (ROM buffer, 80100000h), <code class="docutils literal notranslate"><span class="pre">romram</span></code> (RAM used
+by OpenPsxRom, never writable), <code class="docutils literal notranslate"><span class="pre">openrom_size</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code> (largest data payload), <code class="docutils literal notranslate"><span class="pre">div</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BAUD</span></code></p></td>
+<td><p>divisor (u32) of 2073600, as <code class="docutils literal notranslate"><span class="pre">/psxbaud</span></code></p></td>
+<td><p>answered at the old speed, then the port is reset at the new one; no valid frame within
+~1 s: back to 115200</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">READ</span></code></p></td>
+<td><p>address, length (up to 4 KB)</p></td>
+<td><p>the bytes (any address: RAM, flash, scratchpad)</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">WRITE</span></code></p></td>
+<td><p>address, data</p></td>
+<td><p>main RAM or scratchpad only, never OpenPsxRom’s own RAM</p></td>
+</tr>
+<tr class="row-odd"><td><p>5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LZWR</span></code></p></td>
+<td><p>address, OMC1 stream (<a class="reference internal" href="formats.html"><span class="doc">Formats</span></a>, <code class="docutils literal notranslate"><span class="pre">tools/omc.py</span></code>)</p></td>
+<td><p>unpacked at the address, CRC of the unpacked data checked</p></td>
+</tr>
+<tr class="row-even"><td><p>6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CRCS</span></code></p></td>
+<td><p>address, step, count (up to 512)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">count</span></code> CRC32s of <code class="docutils literal notranslate"><span class="pre">step</span></code> bytes each</p></td>
+</tr>
+<tr class="row-odd"><td><p>7</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">COPY</span></code></p></td>
+<td><p>destination, source, length</p></td>
+<td><p>e.g. a flash bank to <code class="docutils literal notranslate"><span class="pre">rombuf</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>8</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FLASH</span></code></p></td>
+<td><p>CRC32 of the 128 KB in <code class="docutils literal notranslate"><span class="pre">rombuf</span></code></p></td>
+<td><p>written as <code class="docutils literal notranslate"><span class="pre">SROM</span></code> would (bank from the image’s entry, OpenPsxRom’s saves kept); answer:
+failed blocks (u32), bank (u32), or the reason of a refusal. The session ends on the flash
+screen</p></td>
+</tr>
+<tr class="row-odd"><td><p>9</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EXEC</span></code></p></td>
+<td><p>the 2048-byte PS-X EXE header (data loaded before)</p></td>
+<td><p>answered, then the EXE starts</p></td>
+</tr>
+<tr class="row-even"><td><p>10</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RESET</span></code></p></td>
+<td></td>
+<td><p>answered, then jump to the BIOS reset vector</p></td>
+</tr>
+<tr class="row-odd"><td><p>11</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PROG</span></code></p></td>
+<td><p>done, total (u32), then title and up to 4 lines, NUL-separated</p></td>
+<td><p>the console draws that progress screen (the PC drives the bar)</p></td>
+</tr>
+<tr class="row-even"><td><p>12</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">END</span></code></p></td>
+<td></td>
+<td><p>session closed, back to the menu’s serial poll</p></td>
+</tr>
+<tr class="row-odd"><td><p>13</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FLAREA</span></code></p></td>
+<td><p>offset, length, CRC32 of that much of <code class="docutils literal notranslate"><span class="pre">rombuf</span></code></p></td>
+<td><p>writes a data area of bank 1 (whole 16 KB sectors, never OpenPsxRom’s code; refused if the
+cartridge does not hold OpenPsxRom), then reloads the cheat list</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">psx.py</span></code> uses them as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">flash</span> <span class="pre">FILE</span></code> (<em>differential flash</em>): <code class="docutils literal notranslate"><span class="pre">CRCS</span></code> of the cartridge bank in 1 KB pieces, compared
+with the file; <code class="docutils literal notranslate"><span class="pre">COPY</span></code> of the bank to <code class="docutils literal notranslate"><span class="pre">rombuf</span></code>; only the pieces that differ are sent
+(<code class="docutils literal notranslate"><span class="pre">LZWR</span></code> when compressing makes them smaller, else <code class="docutils literal notranslate"><span class="pre">WRITE</span></code>); <code class="docutils literal notranslate"><span class="pre">CRCS</span></code> of <code class="docutils literal notranslate"><span class="pre">rombuf</span></code> against
+the file; then <code class="docutils literal notranslate"><span class="pre">FLASH</span></code>. An image already on the cartridge is not written again. <code class="docutils literal notranslate"><span class="pre">--full</span></code>
+sends every piece.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">exe</span> <span class="pre">FILE</span></code> / <code class="docutils literal notranslate"><span class="pre">load</span> <span class="pre">FILE</span> <span class="pre">ADDR</span></code>: the data in compressed 1 KB pieces, then <code class="docutils literal notranslate"><span class="pre">EXEC</span></code> for an EXE.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dump</span> <span class="pre">ADDR</span> <span class="pre">LEN</span> <span class="pre">FILE</span></code> / <code class="docutils literal notranslate"><span class="pre">peek</span> <span class="pre">ADDR</span> <span class="pre">[LEN]</span></code>: <code class="docutils literal notranslate"><span class="pre">READ</span></code> in 1 KB pieces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">ping</span></code>, <code class="docutils literal notranslate"><span class="pre">reset</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tools/cheats.py</span></code> reads the cheat sector with <code class="docutils literal notranslate"><span class="pre">READ</span></code> and writes it back with <code class="docutils literal notranslate"><span class="pre">FLAREA</span></code>
+(see <a class="reference internal" href="menu.html#cheat-database"><span class="std std-ref">Codes from a cheat database</span></a>).</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>tools/psx.py<span class="w"> </span>flash<span class="w"> </span>build/openrom.rom<span class="w">          </span><span class="c1"># port from tools/comport.txt, or -p COMx</span>
+python<span class="w"> </span>tools/psx.py<span class="w"> </span>dump<span class="w"> </span>0x1F000000<span class="w"> </span>0x20000<span class="w"> </span>bank1.bin
+</pre></div>
+</div>
+<p>The link stays at 115200 baud. The PS1 cannot hit the PC’s rates exactly (33.8688 MHz / 16 / 18 =
+117600 baud, 2 % fast), and with a fixed-rate adapter (CP210x) some bytes arrive wrong, mostly in
+data with many 0/1 transitions: the 1 KB pieces and their resend keep that cheap (about 9 KB/s).
+<code class="docutils literal notranslate"><span class="pre">--fast</span></code> asks for divisor 4 (PC at 510000, as <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/fast</span></code>); it only helps with an adapter that
+can follow the console’s real rates (FTDI, CP2102N). Set <code class="docutils literal notranslate"><span class="pre">PSX_DEBUG=1</span></code> to see every resend.</p>
 </section>
 </section>
 

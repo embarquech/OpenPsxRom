@@ -13,7 +13,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/documentation_options.js?v=48f8e935"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -51,6 +51,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#flashing">Flashing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#installing-a-second-firmware">Installing a second firmware</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#recovering-a-cartridge-that-does-not-boot">Recovering a cartridge that does not boot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#custom-builds-menuconfig">Custom builds (menuconfig)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#running-from-ram">Running from RAM</a></li>
 </ul>
 </li>
@@ -113,8 +114,17 @@ image larger than 64 KB.</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/rom<span class="w"> </span>build/openrom.rom<span class="w"> </span>/dest<span class="w"> </span>COMx
 </pre></div>
 </div>
-<p>The image is checked (Sony header, checksum), written page by page and verified. Keep a dump of
-your original firmware first:</p>
+<p>or with OpenPsxRom’s own client, which only sends the parts that changed (see <a class="reference internal" href="protocol.html"><span class="doc">Serial protocol</span></a>):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>tools/psx.py<span class="w"> </span>flash<span class="w"> </span>build/openrom.rom
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/flash.png"><img alt="_images/flash.png" src="_images/flash.png" width="480" />
+</a>
+<p>The image is checked (Sony header, checksum), written page by page and verified. The flash screen
+then stays on, with the bar, the blocks unchanged / written / failed and a <code class="docutils literal notranslate"><span class="pre">FLASH</span> <span class="pre">OK</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">FLASH</span> <span class="pre">FAILED</span></code>) line, until a button is pressed: meanwhile the serial port is still served, so
+another flash can follow straight away (the new result replaces the shown one), and a <code class="docutils literal notranslate"><span class="pre">/ping</span></code> or
+any other command leaves the screen as it is. Keep a dump of your original firmware first:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/dump<span class="w"> </span>0x1F000000<span class="w"> </span>0x40000<span class="w"> </span>backup.bin<span class="w"> </span>/dest<span class="w"> </span>COMx
 </pre></div>
 </div>
@@ -131,6 +141,36 @@ write. Then choose <em>Boot options &gt; Switch OFF at power-on</em>.</p>
 <p>Start the console from the Unirom (or OpenPsxRom) boot disc without the cartridge, insert the
 cartridge, then run <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/rom</span></code>. If the console stops answering after running other software that
 pokes the expansion port, power it off and on: a reset does not reset the cartridge’s logic.</p>
+</section>
+<section id="custom-builds-menuconfig">
+<span id="custom-builds"></span><h2>Custom builds (menuconfig)<a class="headerlink" href="#custom-builds-menuconfig" title="Link to this heading"></a></h2>
+<p>As for the Linux kernel, the build can be configured in a text menu (<code class="docutils literal notranslate"><span class="pre">Kconfig</span></code> at the top of the
+tree, <code class="docutils literal notranslate"><span class="pre">tools/kconfig.py</span></code>; needs <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">kconfiglib</span></code>, plus <code class="docutils literal notranslate"><span class="pre">windows-curses</span></code> on Windows).
+Run it from a real console (cmd, PowerShell, Windows Terminal, an xterm), not from an IDE pane:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>tools/kconfig.py<span class="w"> </span>menuconfig<span class="w">      </span><span class="c1"># or: make menuconfig   -&gt; .config</span>
+make<span class="w"> </span>cart<span class="w">                               </span><span class="c1"># -&gt; build/cart.rom</span>
+python<span class="w"> </span>tools/psx.py<span class="w"> </span>flash<span class="w"> </span>build/cart.rom
+</pre></div>
+</div>
+<p>The menu offers:</p>
+<ul class="simple">
+<li><p><strong>Cartridge type</strong>: standard (bank 1 at 1F000000h), Xplorer FX second chip (bank 3, written with
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">flash3</span> <span class="pre">IMG=build/cart.rom</span></code>), or the Datel cart with locked sectors (with the path of its
+dump, see <a class="reference internal" href="hardware.html"><span class="doc">Supported hardware</span></a>);</p></li>
+<li><p><strong>Main menu</strong>: <em>Unlock drive + boot CD</em>, <em>Cheats</em>, <em>Restart</em>;</p></li>
+<li><p><strong>Tools</strong>: each of them, and the <code class="docutils literal notranslate"><span class="pre">.STR</span></code> player of the CD browser;</p></li>
+<li><p><strong>Serial port</strong>: the OPX1 link (<code class="docutils literal notranslate"><span class="pre">psx.py</span></code>), screenshots (<code class="docutils literal notranslate"><span class="pre">SHOT</span></code>), memory card upload/download.
+<code class="docutils literal notranslate"><span class="pre">nops</span></code> itself always works; a command left out answers <code class="docutils literal notranslate"><span class="pre">UNSP</span></code>;</p></li>
+<li><p><strong>Boot options: defaults</strong>: what the Boot options screen starts with (in-game menu, serial
+debug, printf, crash screen, video mode).</p></li>
+</ul>
+<p>A feature left out is not just hidden: its code is not linked (the options become <code class="docutils literal notranslate"><span class="pre">CONFIG_*</span></code>
+constants in <code class="docutils literal notranslate"><span class="pre">build/config.h</span></code>, and the linker drops what is never called). With every option off
+the ROM shrinks from about 62 KB to about 43 KB: room to spare on the Datel cart’s 60 KB.</p>
+<p>Without a <code class="docutils literal notranslate"><span class="pre">.config</span></code> the build is the standard one (<code class="docutils literal notranslate"><span class="pre">configs/defconfig</span></code>, all options on); <code class="docutils literal notranslate"><span class="pre">make</span></code>
+without <code class="docutils literal notranslate"><span class="pre">cart</span></code> keeps building <code class="docutils literal notranslate"><span class="pre">build/openrom.rom</span></code> with the options of the <code class="docutils literal notranslate"><span class="pre">.config</span></code>.
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">CONFIG=other.config</span> <span class="pre">cart</span></code> builds another configuration. After a change of <code class="docutils literal notranslate"><span class="pre">Kconfig</span></code>,
+<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">tools/kconfig.py</span> <span class="pre">defconfig</span></code> rewrites <code class="docutils literal notranslate"><span class="pre">configs/defconfig</span></code>.</p>
 </section>
 <section id="running-from-ram">
 <h2>Running from RAM<a class="headerlink" href="#running-from-ram" title="Link to this heading"></a></h2>

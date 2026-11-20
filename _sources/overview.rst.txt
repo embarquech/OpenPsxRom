@@ -50,7 +50,7 @@ Tools
    cartridge information (flash chips, protection, CRC).
 
 While a game runs
-   In-game menu (Xplorer switch off then on): cheats on/off, code finder. printf/TTY to the serial
+   In-game menu (Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT): cheats on/off, code finder. printf/TTY to the serial
    port, crash screen with registers, remote debugging with ``nops``, GDB, PCDRV, video mode
    forcing (PAL/NTSC).
 

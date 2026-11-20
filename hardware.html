@@ -13,7 +13,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/documentation_options.js?v=48f8e935"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -49,6 +49,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#cartridges">Cartridges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#the-xplorer-switch-and-the-banks">The Xplorer switch and the banks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#serial-cable">Serial cable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#datel-cart-with-locked-sectors">Datel cart with locked sectors</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
@@ -112,7 +113,10 @@
 <tr class="row-odd"><td><p>Xplorer FX, double chip</p></td>
 <td><p>2 x SST 29EE020</p></td>
 <td><p>Second chip at 1F040000h; 384 KB addressable, the Xplorer registers sit at 1F060000h.
-Detected and reported; writing bank 3 is implemented, not yet used on hardware.</p></td>
+Bank 3 used on hardware. The second chip is never sent a command outside a write (seen
+once without its software data protection: every command byte was then stored as data,
+and the ID probe at each boot wiped it). Write bank 3 with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">flash3</span> <span class="pre">IMG=...</span></code>
+(<code class="docutils literal notranslate"><span class="pre">build/flash3.exe</span></code>, run with <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/exe</span></code>), which writes and reads back 128 KB.</p></td>
 </tr>
 <tr class="row-even"><td><p>Xplorer FX, single 512 KB chip</p></td>
 <td><p>Winbond W29C040 (reported on forums)</p></td>
@@ -120,7 +124,8 @@ Detected and reported; writing bank 3 is implemented, not yet used on hardware.<
 </tr>
 <tr class="row-odd"><td><p>Datel (Action Replay / PS Hacker)</p></td>
 <td><p>AMD Am29F010 (128 KB)</p></td>
-<td><p>One bank. Some sectors may be hardware-protected (12 V needed to unprotect).</p></td>
+<td><p>One bank. Some sectors may be hardware-protected (12 V needed to unprotect); with sectors
+0 and 5 locked, see below.</p></td>
 </tr>
 </tbody>
 </table>
@@ -164,7 +169,15 @@ pre-boot code checks the firmware’s “Licensed by Sony” header and that its
 its bank; otherwise it falls back to bypass, so an empty or damaged bank never blocks the boot.</p></li>
 </ul>
 <p>A firmware is position-dependent: only images built for 1F020000h (or 1F040000h) can run from bank
-2 (or 3). Unirom’s own installer always writes bank 1: use <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/rom</span></code> with OpenPsxRom, which
+2 (or 3). Caetla only exists for bank 1: <code class="docutils literal notranslate"><span class="pre">tools/caetla_reloc.py</span></code> relocates it (0.34, 0.37, 0.38
+tested) to bank 2 or 3. It unpacks Caetla’s compressed RAM modules to move their references too,
+and points its Action Replay port reads (which fall inside bank 2 on an Xplorer) at erased flash:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">tools</span><span class="o">/</span><span class="n">caetla_reloc</span><span class="o">.</span><span class="n">py</span> <span class="n">caetla</span><span class="o">.</span><span class="n">bin</span> <span class="mi">2</span> <span class="n">build</span><span class="o">/</span><span class="n">caetla_bank2</span><span class="o">.</span><span class="n">rom</span>   <span class="c1"># then nops /rom</span>
+<span class="n">python</span> <span class="n">tools</span><span class="o">/</span><span class="n">caetla_reloc</span><span class="o">.</span><span class="n">py</span> <span class="n">caetla</span><span class="o">.</span><span class="n">bin</span> <span class="mi">3</span> <span class="n">build</span><span class="o">/</span><span class="n">caetla_bank3</span><span class="o">.</span><span class="n">rom</span>   <span class="c1"># then make flash3 IMG=...</span>
+</pre></div>
+</div>
+<p>Do not save Caetla’s settings from a relocated copy: its own flash routines address the chip as in
+bank 1 and would write over OpenPsxRom’s settings page. Unirom’s own installer always writes bank 1: use <code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/rom</span></code> with OpenPsxRom, which
 detects the target bank (see <a class="reference internal" href="installing.html"><span class="doc">Building and installing</span></a>).</p>
 </section>
 <section id="serial-cable">
@@ -172,6 +185,26 @@ detects the target bank (see <a class="reference internal" href="installing.html
 <p>SIO1, 115200 bauds 8N1, 3.3 V levels. PS1 serial port pins: 1 RXD (to the adapter’s TX), 4 TXD
 (to the adapter’s RX), 5 CTS (the PS1 only transmits when the PC raises RTS), 7 GND. Pin 2 is
 +3.5 V: do not connect it to the adapter.</p>
+</section>
+<section id="datel-cart-with-locked-sectors">
+<h2>Datel cart with locked sectors<a class="headerlink" href="#datel-cart-with-locked-sectors" title="Link to this heading"></a></h2>
+<p>Some Datel carts (“PS Hacker (Version 1999)”, Am29F010) have sectors 0 and 5 hardware-protected:
+the BIOS entries and Datel’s boot code in sector 0 cannot be replaced. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">arcart</span></code> builds a
+special OpenPsxRom for them from a dump of the cart:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nops<span class="w"> </span>/dump<span class="w"> </span>0x1F000000<span class="w"> </span>0x20000<span class="w"> </span>backup/ar_cart_128k.bin<span class="w"> </span>/dest<span class="w"> </span>COMx
+make<span class="w"> </span>arcart<span class="w"> </span><span class="nv">DUMP</span><span class="o">=</span>backup/ar_cart_128k.bin<span class="w">          </span><span class="c1"># -&gt; build/openrom_arcart.rom</span>
+python<span class="w"> </span>tools/psx.py<span class="w"> </span>flash<span class="w"> </span>build/openrom_arcart.rom
+</pre></div>
+</div>
+<p>OpenPsxRom is linked at 1F005200h, in the writable sectors 1-4. Two small hooks
+(<code class="docutils literal notranslate"><span class="pre">src/arcart_hooks.s</span></code>) sit where Datel’s locked code first calls into a writable sector, at
+pre-boot (1F004BCCh) and mid-boot (1F0051E0h): they install OpenPsxRom’s hook and return straight
+to the BIOS, after restoring what Datel’s code changed on the way. <code class="docutils literal notranslate"><span class="pre">tools/arcart_image.py</span></code> checks
+that the dump is that firmware, keeps the locked sectors byte for byte (a flash skips them as
+unchanged) and Datel’s settings word at 13F80h. Sector 6 holds one memory card save, sector 7 the
+cheats: <code class="docutils literal notranslate"><span class="pre">psx.py</span> <span class="pre">flash</span></code> keeps both (<code class="docutils literal notranslate"><span class="pre">nops</span> <span class="pre">/rom</span></code> writes the whole 128 KB, so erases them). This build
+has no <code class="docutils literal notranslate"><span class="pre">.STR</span></code> video player (no room left in sectors 1-4). The Cartridge banks screen only shows
+bank 1: a 128 KB chip has no bank 2, and nothing answers at 1F040000h.</p>
 </section>
 </section>
 

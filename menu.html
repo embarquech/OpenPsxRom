@@ -13,7 +13,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/documentation_options.js?v=48f8e935"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -49,7 +49,10 @@
 <li class="toctree-l1"><a class="reference internal" href="installing.html">Building and installing</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Using the menu</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#boot-options">Boot options</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#cheats">Cheats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cheats">Cheats</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#codes-from-a-cheat-database">Codes from a cheat database</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#in-game-menu">In-game menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tools">Tools</a></li>
 </ul>
@@ -101,7 +104,11 @@ the resident core if an option needs it, loads and starts the executable.</p>
 </dd>
 <dt>Unlock drive + boot CD</dt><dd><p>Unlocks the drive for burned discs (no modchip), then boots.</p>
 </dd>
+<dt>Restart</dt><dd><p>Restarts the console, as the reset button.</p>
+</dd>
 </dl>
+<p>Buttons are debounced (a release counts after 3 frames without the button), so a contact bounce
+or a failed pad read no longer gives a second press.</p>
 <section id="boot-options">
 <h2>Boot options<a class="headerlink" href="#boot-options" title="Link to this heading"></a></h2>
 <a class="reference internal image-reference" href="_images/boot-options.png"><img alt="_images/boot-options.png" src="_images/boot-options.png" width="480" />
@@ -118,7 +125,8 @@ the resident core if an option needs it, loads and starts the executable.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>In-game menu (switch)</p></td>
-<td><p>Xplorer switch off then on while a game runs opens the in-game menu.</p></td>
+<td><p>Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT held on pad 1, while a game runs
+opens the in-game menu.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Serial debug in game</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nops</span></code> commands work while the game runs (dump, upload, halt, breakpoints).</p></td>
@@ -143,22 +151,48 @@ when leaving the screen. The menu itself is displayed in PAL or NTSC from the BI
 </section>
 <section id="cheats">
 <h2>Cheats<a class="headerlink" href="#cheats" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="_images/cheats.png"><img alt="_images/cheats.png" src="_images/cheats.png" width="480" />
+</a>
 <p>GameShark codes (address + value), each one on/off, stored in the flash. The resident core applies
 the enabled codes on every interrupt while the game runs. Supported code types: 80 (16-bit write),
 30 (8-bit write), 10/11/20/21 (increment/decrement), D0-D3/E0-E3 (conditions on the next code), 50
 (serial repeater).</p>
+<section id="codes-from-a-cheat-database">
+<span id="cheat-database"></span><h3>Codes from a cheat database<a class="headerlink" href="#codes-from-a-cheat-database" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tools/cheats.py</span></code> picks codes on the PC from a database in DuckStation’s format (its
+<code class="docutils literal notranslate"><span class="pre">resources/cheats.zip</span></code>, a folder of <code class="docutils literal notranslate"><span class="pre">SERIAL.cht</span></code> files, or one <code class="docutils literal notranslate"><span class="pre">.cht</span></code>) and writes them to the
+cartridge over the serial port; the Cheats list shows them at once:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>tools/cheats.py<span class="w"> </span>--db<span class="w"> </span>cheats.zip<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;crash bandicoot&quot;</span>
+python<span class="w"> </span>tools/cheats.py<span class="w"> </span>--db<span class="w"> </span>cheats.zip<span class="w"> </span>list<span class="w"> </span>SCES-00344<span class="w">        </span><span class="c1"># numbered cheats</span>
+python<span class="w"> </span>tools/cheats.py<span class="w"> </span>--db<span class="w"> </span>cheats.zip<span class="w"> </span>send<span class="w"> </span>SCES-00344<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="m">4</span><span class="w">  </span><span class="c1"># or: all; --append, --off</span>
+python<span class="w"> </span>tools/cheats.py<span class="w"> </span>show<span class="w">                                   </span><span class="c1"># what the cartridge holds</span>
+python<span class="w"> </span>tools/cheats.py<span class="w"> </span>clear
+</pre></div>
+</div>
+<p>The cartridge keeps the game’s title and one list of up to 96 code lines, grouped by cheat with
+its name (31 characters); the Cheats screen shows one line per cheat (cross turns all its code
+lines on or off) and, at the bottom, the codes of the selected one. The core applies the enabled
+codes whatever the game: send the codes of the game about to be played. A whole database does not fit in a cartridge
+(DuckStation’s: about 4100 games, 1.7 MB in a compact form, 400-560 KB compressed), hence the
+choice on the PC. Codes that need a value chosen (<code class="docutils literal notranslate"><span class="pre">00??</span></code>) or use a type the core does not handle
+(<code class="docutils literal notranslate"><span class="pre">C0</span></code>/<code class="docutils literal notranslate"><span class="pre">C2</span></code>, <code class="docutils literal notranslate"><span class="pre">00</span></code>…) are listed but not sent. <code class="docutils literal notranslate"><span class="pre">PSX_CHEATDB</span></code> can hold the database path.</p>
+</section>
 </section>
 <section id="in-game-menu">
 <h2>In-game menu<a class="headerlink" href="#in-game-menu" title="Link to this heading"></a></h2>
 <p>With the option on, switching the Xplorer switch off then on while a game runs freezes the game and
 shows a menu drawn over it: resume, cheats on/off, code finder (search a value in the game RAM,
 change it in the game, search again among the candidates, then turn a result into a cheat).</p>
+<p>The same menu opens with L1+R1+L2+R2+START+SELECT held together on pad 1. The resident core reads
+the pad itself on one vblank in eight, only while the controller/memory card port is idle (never in
+the middle of the game’s own transfer, so a memory card save is never cut), and puts the game’s
+port settings back. Like the switch, it needs the game to keep its interrupts on.</p>
 </section>
 <section id="tools">
 <h2>Tools<a class="headerlink" href="#tools" title="Link to this heading"></a></h2>
 <a class="reference internal image-reference" href="_images/tools.png"><img alt="_images/tools.png" src="_images/tools.png" width="480" />
 </a>
-<dl class="simple">
+<dl>
 <dt>CD browser</dt><dd><p>Lists the disc; runs an <code class="docutils literal notranslate"><span class="pre">.EXE</span></code>, flashes a <code class="docutils literal notranslate"><span class="pre">.ROM</span></code> (bank chosen as for <code class="docutils literal notranslate"><span class="pre">/rom</span></code>), plays an
 <code class="docutils literal notranslate"><span class="pre">.STR</span></code> video.</p>
 </dd>
@@ -169,15 +203,23 @@ change it in the game, search again among the candidates, then turn a result int
 <dt>Memory cards</dt><dd><p>Two panes: the memory card (left) and the saves kept in the cartridge (right), with animated
 icons; copy, delete, free blocks. Writes are verified frame by frame.</p>
 </dd>
-<dt>Controller test</dt><dd><p>Buttons and analog sticks of both pads (digital pad, DualShock, mouse…).</p>
+<dt>Controller test</dt><dd><p>Buttons and analog sticks of both pads (digital pad, DualShock, mouse…), and the raw bytes
+the pad answered.</p>
+<a class="reference internal image-reference" href="_images/controller-test.png"><img alt="_images/controller-test.png" src="_images/controller-test.png" width="480" />
+</a>
 </dd>
 <dt>Hex editor</dt><dd><p>RAM and cartridge viewer.</p>
 </dd>
 <dt>Cartridge info</dt><dd><p>Flash chip(s), IDs, protection, ROM CRC.</p>
 </dd>
+<dt>Cartridge banks</dt><dd><p>What each bank holds (OpenPsxRom, Unirom, Caetla, Xplorer… or the header text, or empty), its
+CRC, which one the switch starts, and the switch-off setting.</p>
+</dd>
 </dl>
 <a class="reference internal image-reference" href="_images/cartridge.png"><img alt="_images/cartridge.png" src="_images/cartridge.png" width="480" />
 </a>
+<p>Every entry of the main menu but <em>Boot CD</em>, <em>Boot options</em>, <em>Tools</em> and <em>About</em>, and every tool, can
+be left out of a custom build (<a class="reference internal" href="installing.html#custom-builds"><span class="std std-ref">Custom builds (menuconfig)</span></a>).</p>
 </section>
 </section>
 
