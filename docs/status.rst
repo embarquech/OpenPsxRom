@@ -1,14 +1,16 @@
 Status
 ======
 
-Tested on real hardware (Xplorer, SST 29EE020)
-----------------------------------------------
+Tested on real hardware (Xplorer, SST 29EE020; Datel, AMD Am29F010)
+--------------------------------------------------------------------
 
 * boot, boot log, menu over serial;
 * ``nops``: ``/ping``, ``/bin``, ``/exe``, ``/rom``, ``/dump``, ``/poke``, ``/mcup``, ``/mcdown``,
   ``/debug``, 230400 bauds;
 * flashing with read-back verification; switch and bank 2 (Unirom); second chip detection on a
-  double-chip Xplorer FX;
+  double-chip Xplorer FX, writing bank 3 with ``psx.py flash`` (read back identical) and starting
+  from it;
+* Datel cart with locked sectors 0 and 5: ``psx.py flash`` of the ``make arcart`` image, boot;
 * memory card writes with frame verification; screenshots over serial;
 * printf to serial and register reading under the debug core.
 
@@ -16,7 +18,7 @@ Not tested on hardware yet
 --------------------------
 
 In-game menu, cheats, code finder, memory card manager and icons, CD audio player, STR player,
-PCDRV, GDB sessions and hardware breakpoints, writing bank 3.
+PCDRV, GDB sessions and hardware breakpoints.
 
 Known limitations
 -----------------

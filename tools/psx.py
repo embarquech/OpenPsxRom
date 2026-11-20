@@ -303,7 +303,8 @@ def main():
                     print('%-13s %s' % (k, v))
             elif cmd == 'ping':
                 link.ok(PING)
-                print('OpenPsxRom %s on %s' % (link.info.get('version'), port))
+                print('OpenPsxRom %s on %s, BIOS: %s' % (link.info.get('version'), port,
+                                                         link.info.get('bios', '(not reported)')))
             elif cmd == 'flash':
                 cmd_flash(link, args[0], '--full' in args)
                 link = None                                # the console shows the result screen

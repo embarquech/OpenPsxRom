@@ -23,7 +23,8 @@ config TARGET_BANK3
 	help
 	  A second OpenPsxRom for the second chip of a double-bank Xplorer
 	  FX, started with switch OFF + Boot options. Written with
-	  make flash3 IMG=build/cart.rom.
+	  python tools/psx.py flash build/cart.rom (fallback:
+	  make flash3 IMG=build/cart.rom).
 
 config TARGET_DATEL
 	bool "Datel cart with sectors 0 and 5 locked (PS Hacker 1999)"
@@ -84,7 +85,9 @@ config CD_AUDIO
 
 config VRAM_VIEWER
 	bool "VRAM viewer"
-	default y
+	default y if !TARGET_DATEL
+	help
+	  Left out of a Datel build by default: no room (60 KB).
 
 config MEMCARDS
 	bool "Memory cards (files, backup in the cartridge)"
@@ -99,12 +102,10 @@ config HEXEDIT
 	default y
 
 config CART_INFO
-	bool "Cartridge info"
+	bool "Cartridge (flash chip, banks, switch)"
 	default y
-
-config CART_BANKS
-	bool "Cartridge banks"
-	default y
+	help
+	  A Datel build shows the chip and the ROM's CRC only (one bank).
 
 endmenu
 

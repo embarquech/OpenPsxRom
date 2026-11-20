@@ -153,8 +153,6 @@ static int confirm(const char *title, const char *l1, const char *l2) {
 }
 
 // ---------------------------------------------------------------- cartridge banks
-// What each 128 KB bank holds (known firmware names, else the header text), whether it can be
-// started, its CRC, and which one the switch starts.
 int bank_available(int bank);
 int chip2_present(void);
 int rom_bank_ok(int bank);
@@ -185,52 +183,20 @@ static void bank_name(int bank, char *out) {
     out[n] = 0;
     if (!n) fmt_str(out, "unknown firmware");
 }
-static void screen_banks(void) {
-    char name[3][32];
-    u32 crc[3];
-    int avail[3];
-    for (int k = 0; k < 3; k++) {
-        avail[k] = bank_available(k + 1);
-        if (!avail[k]) continue;
-        frame_begin("Cartridge banks");
-        gfx_text(24, 100, C_TEXT, "reading the cartridge...");
-        gfx_flip();
-        bank_name(k + 1, name[k]);
-        crc[k] = crc32((const void *)(FLASH_BASE + k * 0x20000u), 0x20000);
+// "1 OpenPsxRom, 2 Unirom, 3 empty": what each bank of this cartridge holds (boot log, INFO)
+char *fmt_banks(char *p) {
+    for (int b = 1; b <= 3; b++) {
+        if (!bank_available(b)) continue;
+        if (b > 1) p = fmt_str(p, ", ");
+        p = fmt_dec(p, b); *p++ = ' ';
+        bank_name(b, p);
+        while (*p) p++;
     }
-    for (;;) {
-        frame_begin("Cartridge banks");
-        int sw = *(volatile u8 *)0x1F060000 & 1, boot = cfg_bank();
-        char s[64], *p;
-        for (int k = 0; k < 3; k++) {
-            int y = 44 + k * 40;
-            p = fmt_str(s, "Bank ");
-            p = fmt_dec(p, k + 1);
-            p = fmt_str(p, "  ");
-            fmt_hex(p, 0x1F000000u + k * 0x20000u, 8);
-            gfx_text(16, y, C_SEL, s);
-            if (!avail[k]) { gfx_text(32, y + 12, C_DIM, k == 2 ? "not on this cartridge (no 2nd chip)" : "not on this cartridge"); continue; }
-            gfx_text(32, y + 12, name[k][0] == 'e' ? C_DIM : C_OK, name[k]);
-            if (name[k][0] == 'e') continue;                // empty: no CRC
-            p = fmt_str(s, "CRC ");
-            p = fmt_hex(p, crc[k], 8);
-            if (k == 0) p = fmt_str(p, "  starts: switch ON");
-            else if (rom_bank_ok(k + 1)) p = fmt_str(p, boot == k + 1 ? "  starts: switch OFF" : "  startable");
-            gfx_text(32, y + 24, C_DIM, s);
-        }
-        p = fmt_str(s, "Switch now: ");
-        p = fmt_str(p, sw ? "ON" : "OFF");
-        p = fmt_str(p, "   OFF at power-on: ");
-        fmt_str(p, boot == 2 ? "bank 2" : boot == 3 ? "bank 3" : "bypass");
-        gfx_text(16, 168, C_TEXT, s);
-        gfx_text(16, 182, C_DIM, "(set in Boot options)");
-        help(G_CIRCLE " back");
-        frame_end();
-        if (back()) return;
-    }
+    return p;
 }
-
 // ---------------------------------------------------------------- cartridge
+// One screen: the flash chip, then what each 128 KB bank holds (known firmware names, else the
+// header text), its CRC, which one the switch starts, and the switch itself.
 static void screen_cart(void) {
     u8 mfr, dev, prot[8];
     int known = flash_identify(&mfr, &dev);
@@ -238,35 +204,66 @@ static void screen_cart(void) {
     // Atmel/SST/Winbond page chips use software data protection: nothing to read per sector
     int lockable = mfr == 0x01 || mfr == 0x20 || mfr == 0x04;
     if (lockable) flash_protect(prot);
-    // a second chip only if the first one is smaller than 512 KB (else 40000h is the same chip)
-    int chip2 = chip2_present();                       // read only: no command to it
+    frame_begin("Cartridge");
+    gfx_text(24, 100, C_TEXT, "reading the cartridge...");
+    gfx_flip();
+#ifdef ARCART               // a Datel cart has one bank (and no room): the whole ROM's CRC only
     u32 crc = crc32((const void *)FLASH_BASE, FLASH_SIZE);
+#else
+    char name[3][32];
+    u32 crc[3];
+    int avail[3];
+    for (int k = 0; k < 3; k++) {
+        avail[k] = bank_available(k + 1);       // bank 3: second chip, read only (no command)
+        if (!avail[k]) continue;
+        bank_name(k + 1, name[k]);
+        crc[k] = crc32((const void *)(FLASH_BASE + k * 0x20000u), 0x20000);
+    }
+#endif
     for (;;) {
         frame_begin("Cartridge");
         char s[64], *p;
-        int y = 46;
-        p = fmt_str(s, "Flash ID   ");
+        p = fmt_str(s, "Flash ID ");
         p = fmt_hex(p, mfr, 2); p = fmt_str(p, "/"); fmt_hex(p, dev, 2);
-        gfx_text(16, y, C_TEXT, s); y += 12;
-        gfx_text(16, y, known ? C_OK : C_ERR, flash_chip_name(mfr, dev)); y += 12;
+        gfx_text(16, 40, C_TEXT, s);
+        gfx_text(16, 52, known ? C_OK : C_ERR, flash_chip_name(mfr, dev));
         if (lockable) {
-            p = fmt_str(s, "Protected  ");
+            p = fmt_str(s, "Protected ");
             int any = 0;
             for (int i = 0; i < 8; i++) if (prot[i]) { *p++ = '0' + i; *p++ = ' '; any = 1; }
             if (!any) p = fmt_str(p, "none");
             *p = 0;
-            gfx_text(16, y, any ? C_ERR : C_OK, s); y += 12;
-        } else {
-            gfx_text(16, y, C_DIM, "Protection software (no sector lock)"); y += 12;
+            gfx_text(16, 64, any ? C_ERR : C_OK, s);
+        } else
+            gfx_text(16, 64, C_DIM, "Protection software (no sector lock)");
+#ifdef ARCART
+        p = fmt_str(s, "ROM CRC32 "); fmt_hex(p, crc, 8);
+        gfx_text(16, 84, C_TEXT, s);
+#else
+        int sw = *(volatile u8 *)0x1F060000 & 1, boot = cfg_bank();
+        for (int k = 0; k < 3; k++) {
+            int y = 82 + k * 26;
+            p = fmt_str(s, "Bank ");
+            p = fmt_dec(p, k + 1);
+            p = fmt_str(p, " ");
+            fmt_hex(p, 0x1F000000u + k * 0x20000u, 8);
+            gfx_text(16, y, C_SEL, s);
+            if (!avail[k]) { gfx_text(128, y, C_DIM, "not on this cartridge"); continue; }
+            gfx_text(128, y, name[k][0] == 'e' ? C_DIM : C_OK, name[k]);
+            if (name[k][0] == 'e') continue;                // empty: no CRC
+            p = fmt_str(s, "CRC ");
+            p = fmt_hex(p, crc[k], 8);
+            if (k == 0) p = fmt_str(p, "  starts: switch ON");
+            else if (rom_bank_ok(k + 1)) p = fmt_str(p, boot == k + 1 ? "  starts: switch OFF" : "  startable");
+            gfx_text(32, y + 12, C_DIM, s);
         }
-        if (chip2) {
-            p = fmt_str(s, "Chip 2     at 1F040000h (not probed)");
-            gfx_text(16, y, C_OK, s); y += 12;
-        }
-        p = fmt_str(s, "ROM CRC32  "); fmt_hex(p, crc, 8);
-        gfx_text(16, y, C_TEXT, s); y += 24;
-        gfx_text(16, y, C_DIM, "Flash a new ROM from the PC with:"); y += 12;
-        gfx_text(16, y, C_DIM, "  nops /rom FILE.ROM COMx");
+        p = fmt_str(s, "Switch now: ");
+        p = fmt_str(p, sw ? "ON" : "OFF");
+        p = fmt_str(p, "   OFF at power-on: ");
+        fmt_str(p, boot == 2 ? "bank 2" : boot == 3 ? "bank 3" : "bypass");
+        gfx_text(16, 162, C_TEXT, s);
+#endif
+        gfx_text(16, 180, C_DIM, "Flash from the PC: nops /rom FILE.ROM COMx");
         help(G_CIRCLE " back");
         frame_end();
         if (back()) return;
@@ -398,10 +395,11 @@ static void draw_pane(int x, const char *title, const char *info, McEntry *e, in
         int k = 0;
         for (; k < 20 && e[i].title[k]; k++) t[k] = e[i].title[k];
         t[k] = 0;
-        gfx_text(x + 24, y + 1, i == sel && focus ? C_SEL : C_TEXT, t);
-        char b[16], *p = fmt_dec(b, e[i].blocks);
-        fmt_str(p, e[i].blocks > 1 ? " blocks" : " block");
-        gfx_text(x + 24, y + 10, C_DIM, b);
+        gfx_text(x + 24, y + 1, i == sel && focus ? C_SEL : e[i].deleted ? C_DIM : C_TEXT, t);
+        char b[24], *p = fmt_dec(b, e[i].blocks);
+        p = fmt_str(p, e[i].blocks > 1 ? " blocks" : " block");
+        if (e[i].deleted) fmt_str(p, ", deleted");
+        gfx_text(x + 24, y + 10, e[i].deleted ? C_ERR : C_DIM, b);
     }
 }
 
@@ -433,7 +431,9 @@ static void screen_cards(void) {
             McEntry *e = side ? (stn > 0 ? &ste[sel[1]] : 0) : (mcn > 0 ? &mce[sel[0]] : 0);
             if (e) gfx_text(8, 199, 0xA0C0D0, e->title);
         }
-        help(G_LEFT " " G_RIGHT " side " G_CROSS " copy " G_TRIANGLE " delete L1/R1 slot " G_CIRCLE);
+        int undel = side == 0 && mcn > 0 && mce[sel[0]].deleted;
+        help(undel ? G_LEFT " " G_RIGHT " side " G_CROSS " restore this deleted save   L1/R1 slot"
+                   : G_LEFT " " G_RIGHT " side " G_CROSS " copy " G_TRIANGLE " delete L1/R1 slot " G_CIRCLE);
         frame_end();
         if (back()) return;
         if (pressed(PAD_LEFT)) side = 0;
@@ -444,6 +444,16 @@ static void screen_cards(void) {
             if (moved(PAD_UP)) sel[side] = (sel[side] + n - 1) % n;
             if (moved(PAD_DOWN)) sel[side] = (sel[side] + 1) % n;
         }
+        if (pressed(PAD_CROSS) && undel) {                     // a deleted save comes back
+            McEntry *e = &mce[sel[0]];
+            if (!confirm("Restore", e->title, "deleted save, back on the memory card")) continue;
+            int r = mc_undelete_file(port, e);
+            if (r) message("Restore", r == -3 ? "a save with this name is on the card" : r == -2 ?
+                           "its blocks were reused: it cannot come back" : "memory card write error", 0, C_ERR);
+            reload_card = 1;
+            continue;
+        }
+        if (pressed(PAD_TRIANGLE) && undel) continue;          // already deleted
         if (pressed(PAD_CROSS) && n > 0) {
             if (side == 0) {                                   // card -> cartridge
                 McEntry *e = &mce[sel[0]];
@@ -1278,7 +1288,7 @@ static void screen_padtest(void) {
 // compiler from constants, and the call of a disabled tool is removed with its code.
 #define T_ON(x) ((x) ? 1 : 0)
 enum { T_COUNT = T_ON(CONFIG_CD_BROWSER) + T_ON(CONFIG_CD_AUDIO) + T_ON(CONFIG_VRAM_VIEWER) + T_ON(CONFIG_MEMCARDS) +
-                 T_ON(CONFIG_PADTEST) + T_ON(CONFIG_HEXEDIT) + T_ON(CONFIG_CART_INFO) + T_ON(CONFIG_CART_BANKS) };
+                 T_ON(CONFIG_PADTEST) + T_ON(CONFIG_HEXEDIT) + T_ON(CONFIG_CART_INFO) };
 static void screen_tools(void) {
     static const char *const items[T_COUNT + 1] = {
 #if CONFIG_CD_BROWSER
@@ -1300,10 +1310,7 @@ static void screen_tools(void) {
         "Hex editor",
 #endif
 #if CONFIG_CART_INFO
-        "Cartridge info",
-#endif
-#if CONFIG_CART_BANKS
-        "Cartridge banks",
+        "Cartridge",
 #endif
     };
     static const char *const desc[T_COUNT + 1] = {
@@ -1326,10 +1333,7 @@ static void screen_tools(void) {
         "View / edit RAM, ROM, BIOS, scratchpad.",
 #endif
 #if CONFIG_CART_INFO
-        "Flash chip, protection, ROM checksum.",
-#endif
-#if CONFIG_CART_BANKS
-        "Which program is in which bank.",
+        "Flash chip, what each bank holds, switch.",
 #endif
     };
     enum { N = T_COUNT };
@@ -1356,7 +1360,6 @@ static void screen_tools(void) {
             else if (CONFIG_PADTEST && sel == k++) screen_padtest();
             else if (CONFIG_HEXEDIT && sel == k++) screen_hex();
             else if (CONFIG_CART_INFO && sel == k++) screen_cart();
-            else if (CONFIG_CART_BANKS && sel == k++) screen_banks();
         }
     }
 }
@@ -1366,10 +1369,10 @@ static void blog(const char *s) { sio_puts(s); sio_puts("\r\n"); dbg(s); }
 static void boot_log(void) {
     char t[96], *q;
     // BIOS: "System ROM Version x.y date region" at BFC7FF32h (v2.0 and later)
-    const char *v = (const char *)0xBFC7FF32;
-    q = fmt_str(t, "BIOS: ");
-    if (v[0] == 'S' && v[1] == 'y') { int i = 0; while (i < 40 && v[i] >= 32 && v[i] < 127) { *q++ = v[i]; i++; } *q = 0; }
-    else q = fmt_str(q, "v1.x (no version string)");
+    q = fmt_bios(fmt_str(t, "BIOS: "));
+    q = fmt_str(q, ", CRC32 "); fmt_hex(q, crc32((const void *)0xBFC00000, 0x80000), 8);   // whole 512 KB
+    blog(t);
+    q = fmt_str(t, "Console: "); fmt_str(q, bios_model());
     blog(t);
     q = fmt_str(t, "Video: ");
     fmt_str(q, (*(volatile u32 *)0x1F801814 >> 20) & 1 ? "PAL (50 Hz)" : "NTSC (60 Hz)");
@@ -1379,7 +1382,21 @@ static void boot_log(void) {
     q = fmt_str(t, "Flash: ");
     q = fmt_str(q, known ? flash_chip_name(m, d) : "unknown chip");
     q = fmt_str(q, " (ID "); q = fmt_hex(q, m, 2); q = fmt_str(q, "/"); q = fmt_hex(q, d, 2);
-    q = fmt_str(q, "), ROM CRC "); fmt_hex(q, crc32((const void *)FLASH_BASE, 0x10000), 8);
+    q = fmt_str(q, "), "); q = fmt_dec(q, known ? flash_chip_kb(m, d) : 0);
+    q = fmt_str(q, " KB, ROM CRC "); fmt_hex(q, crc32((const void *)FLASH_BASE, 0x10000), 8);
+    blog(t);
+    fmt_banks(fmt_str(t, "Banks: "));
+    blog(t);
+    q = fmt_str(t, "Started from: ");
+#if defined(BOOTDISC)
+    fmt_str(q, "EXE in RAM");
+#elif defined(ARCART)
+    fmt_str(q, "ROM (Datel cart)");
+#elif defined(BANK3)
+    fmt_str(q, "ROM bank 3");
+#else
+    fmt_str(q, "ROM bank 1");
+#endif
     blog(t);
     {   // second chip of double-bank carts (Xplorer FX): read only, never a command at boot
         extern int chip2_present(void);
@@ -1421,7 +1438,8 @@ static void boot_log(void) {
         blog(t);
     }
     q = fmt_str(t, "CD: ");
-    fmt_str(q, cd_lid_open() ? "lid open or no drive answer" : "lid closed");
+    q = fmt_str(q, cd_lid_open() ? "lid open or no drive answer" : "lid closed");
+    fmt_str(q, cd_unlocked ? ", unlocked" : ", locked");
     blog(t);
     blog("Serial: 115200 bauds, nops commands accepted");
     blog("OpenPsxRom " OPENROM_VERSION " ready");
@@ -1665,7 +1683,7 @@ int main(void) {
                     sio_puts("UITEST6 result shown");
                 }
                 else if (UITEST == 5) ui_flash_result("FLASH OK  CRC32 1234ABCD");
-                else if (UITEST == 4) screen_banks();
+                else if (UITEST == 4) screen_cart();
                 else if (UITEST == 3) ui_ask("flash done", "OpenPsxRom written and verified", "CRC 29291983", "Restart on the new version now?");
                 else if (UITEST == 1) {
                     flash_ui_begin("flashing", ROM2_OFF, FLASH_SIZE);

@@ -172,15 +172,36 @@ static void entry_from_dir(int b, McEntry *x) {
     x->first = b;
 }
 
-// Files of the card in slot port (with titles and icons). -1: no card / unformatted.
+// A deleted save (first block A1h) can come back if its chain is whole: size / 8 KB blocks, each
+// one still marked deleted (A2h middle, A3h last; a single block: A1h alone), linked to the end
+// (FFFFh). A block reused by another save breaks the chain (5xh state, or A0h after a format).
+static int deleted_whole(int b) {
+    u32 size = dirs[b][4] | (dirs[b][5] << 8) | (dirs[b][6] << 16);
+    int blocks = (size + 8191) / 8192;
+    if (blocks < 1 || blocks > 15) return 0;
+    for (int k = 0; k < blocks; k++) {
+        if (b < 1 || b > 15) return 0;
+        u8 st = dirs[b][0];
+        if (k == 0 ? st != 0xA1 : st != (k == blocks - 1 ? 0xA3 : 0xA2)) return 0;
+        u16 nx = dirs[b][8] | (dirs[b][9] << 8);
+        if ((k == blocks - 1) != (nx == 0xFFFF)) return 0;
+        b = nx + 1;
+    }
+    return 1;
+}
+
+// Files of the card in slot port (with titles and icons), then the deleted saves that can be
+// restored (deleted = 1). -1: no card / unformatted.
 int mc_list(int port, McEntry *e) {
     if (read_dir(port)) return -1;
     int n = 0;
     u8 hdr[128], icons[3 * 128];
+    for (int pass = 0; pass < 2; pass++)
     for (int b = 1; b <= 15; b++) {
-        if (dirs[b][0] != 0x51) continue;
+        if (pass == 0 ? dirs[b][0] != 0x51 : (dirs[b][0] != 0xA1 || !deleted_whole(b))) continue;
         McEntry *x = &e[n++];
         entry_from_dir(b, x);
+        x->deleted = (u8)pass;
         int ok = mc_read_frame(port, b * 64, hdr);
         int n = ok && hdr[0] == 'S' ? (hdr[2] & 3) : 1;
         for (int f = 0; ok && f < (n ? n : 1); f++) ok = mc_read_frame(port, b * 64 + 1 + f, icons + f * 128);
@@ -246,6 +267,29 @@ int mc_write_file(int port, const u8 *dirf, const u8 *src, int blocks) {
         memcpy(fr + 10, dirf + 10, 21);
         fix_ck(fr);
         if (!mc_put_frame(port, list[k], fr)) return -1;
+    }
+    return 0;
+}
+
+// Restore a deleted save: its directory frames back to 51h / 52h / 53h, if its chain is still whole
+// and no save on the card has its name.
+int mc_undelete_file(int port, const McEntry *e) {
+    if (read_dir(port)) return -1;
+    if (!deleted_whole(e->first)) return -2;
+    for (int b = 1; b <= 15; b++)
+        if (dirs[b][0] == 0x51) {
+            int same = 1;
+            for (int k = 0; k < 21; k++) if (dirs[b][10 + k] != dirs[e->first][10 + k]) { same = 0; break; }
+            if (same) return -3;
+        }
+    int b = e->first;
+    for (int k = 0; k < e->blocks; k++) {
+        u8 *fr = dirs[b];
+        u16 nx = fr[8] | (fr[9] << 8);
+        fr[0] -= 0x50;                               // A1h/A2h/A3h -> 51h/52h/53h
+        fix_ck(fr);
+        if (!mc_put_frame(port, b, fr)) return -1;
+        b = nx + 1;
     }
     return 0;
 }

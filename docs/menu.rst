@@ -115,7 +115,8 @@ VRAM viewer
    Shows the whole video memory, scrollable.
 Memory cards
    Two panes: the memory card (left) and the saves kept in the cartridge (right), with animated
-   icons; copy, delete, free blocks. Writes are verified frame by frame.
+   icons; copy, delete, free blocks. Writes are verified frame by frame. A deleted save whose
+   blocks are all still there is listed (dimmed, "deleted"): X restores it.
 Controller test
    Buttons and analog sticks of both pads (digital pad, DualShock, mouse...), and the raw bytes
    the pad answered.
@@ -125,11 +126,10 @@ Controller test
 
 Hex editor
    RAM and cartridge viewer.
-Cartridge info
-   Flash chip(s), IDs, protection, ROM CRC.
-Cartridge banks
-   What each bank holds (OpenPsxRom, Unirom, Caetla, Xplorer... or the header text, or empty), its
-   CRC, which one the switch starts, and the switch-off setting.
+Cartridge
+   The flash chip (ID, name, protection), then what each bank holds (OpenPsxRom, Unirom, Caetla,
+   Xplorer... or the header text, or empty), its CRC, which one the switch starts, and the switch
+   position with the switch-off setting.
 
 .. image:: cartridge.png
    :width: 480

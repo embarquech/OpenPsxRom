@@ -81,7 +81,7 @@ Run it from a real console (cmd, PowerShell, Windows Terminal, an xterm), not fr
 The menu offers:
 
 * **Cartridge type**: standard (bank 1 at 1F000000h), Xplorer FX second chip (bank 3, written with
-  ``make flash3 IMG=build/cart.rom``), or the Datel cart with locked sectors (with the path of its
+  ``psx.py flash`` like the others), or the Datel cart with locked sectors (with the path of its
   dump, see :doc:`hardware`);
 * **Main menu**: *Unlock drive + boot CD*, *Cheats*, *Restart*;
 * **Tools**: each of them, and the ``.STR`` player of the CD browser;

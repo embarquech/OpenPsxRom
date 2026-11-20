@@ -144,7 +144,12 @@ the session can send ``OPX1`` again inside it: the console answers ``OPXA`` and 
      -
      - text, one ``key=value`` per line: version, build (bank1 / bank3 / arcart), flash chip and
        ID, size, banks 2 and 3 available, ``rombuf`` (ROM buffer, 80100000h), ``romram`` (RAM used
-       by OpenPsxRom, never writable), ``openrom_size``, ``max`` (largest data payload), ``div``
+       by OpenPsxRom, never writable), ``openrom_size``, ``max`` (largest data payload), ``div``,
+       ``bios`` (the console's BIOS, e.g. ``System ROM Version 4.1 12/16/97 E``; ``psx.py ping``
+       shows it), ``bios_crc`` (CRC32 of its 512 KB), ``model`` (models with this BIOS, e.g.
+       ``SCPH-7002/7502/9002``), ``started`` (``rom``: from the cartridge, ``ram``: an EXE),
+       ``switch`` (``on`` / ``off``; meaningless on a Datel cart), ``cd_unlocked`` (1 after the
+       menu's drive unlock), ``banks`` (what each bank holds, e.g. ``1 OpenPsxRom, 2 Unirom``)
    * - 2
      - ``BAUD``
      - divisor (u32) of 2073600, as ``/psxbaud``

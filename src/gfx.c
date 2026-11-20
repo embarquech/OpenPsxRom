@@ -35,10 +35,8 @@ static void gp0(u32 w) { for (u32 t = 0; t < 2000000 && !(GPUSTAT & (1u << 26));
 
 // PAL if the BIOS version string ends with 'E' ("System ROM Version 4.1 12/16/97 E").
 static int bios_is_pal(void) {
-    const char *p = (const char *)0xBFC7FF32;
-    for (int i = 0; i < 40 && p[i]; i++)
-        if (p[i] == 'E' && (p[i + 1] == 0 || p[i + 1] == ' ') && i > 10 && p[i - 1] == ' ') return 1;
-    return 0;
+    char v[48], *e = fmt_bios(v);
+    return v[0] == 'S' && e[-1] == 'E' && e[-2] == ' ';
 }
 
 // 128 x 56 texels, sent by DMA2 (block mode, 16 words per block)

@@ -180,7 +180,10 @@ static void cmd_sexe(void) {
 }
 
 // /mcup CARD FILE: raw 128 KB image written frame by frame, then read back
-static void mc_prog(int f) { ui_progress("memory card", f, 1024); }
+// the progress screen says which way and which slot: "writing memory card 1" / "reading memory card 2"
+static char mc_what[24];
+static void mc_prog(int f) { ui_progress(mc_what, f, 1024); }
+static void mc_title(const char *verb, u32 card) { char *p = fmt_str(mc_what, verb); p = fmt_str(p, " memory card "); fmt_dec(p, card + 1); }
 static void cmd_mcup(void) {
     accept("OKAY");
     u32 card = rx32() & 1, len = rx32(), sum = rx32();
@@ -192,6 +195,7 @@ static void cmd_mcup(void) {
     rx_what = 0;
     if (sum8(ROM_BUF, len) != sum) { status("card image CHECKSUM ERROR, nothing written", -1, -1); return; }
     if (len != 131072) { status("card image is not 128 KB, nothing written", len, 0); return; }
+    mc_title("writing", card);                      // each frame is read back as it is written
     int bad = mc_write_card(card, ROM_BUF, mc_prog);
     if (bad == 1024) status("no memory card in slot", card + 1, 0);
     else if (bad) status("memory card: frames failed", bad, 0);
@@ -203,6 +207,7 @@ static void cmd_mcdn(void) {
     accept("OKAY");                         // nops v14 waits for OKAY, v18 for HLTD: send both
     sio_puts("HLTD");
     u32 card = rx32() & 1;
+    mc_title("reading", card);
     int bad = mc_read_card(card, ROM_BUF, mc_prog);
     if (bad == 1024) { sio_puts("HECK"); status("no memory card in slot", card + 1, 0); return; }
     sio_puts("MCRD");
@@ -425,7 +430,7 @@ static int x_ram_ok(u32 addr, u32 len) {
 }
 
 static void x_info(void) {
-    static char t[400];
+    static char t[640];
     u8 m = 0xFF, d = 0xFF;
     flash_identify(&m, &d);
     extern int bank_available(int bank);
@@ -449,6 +454,20 @@ static void x_info(void) {
     p = fmt_str(p, "\nopenrom_size="); p = fmt_hex(p, FL_ROM_SIZE, 8);
     p = fmt_str(p, "\nmax="); p = fmt_dec(p, X_MAX - 12);
     p = fmt_str(p, "\ndiv="); p = fmt_dec(p, cur_div);
+    // the console's BIOS: "System ROM Version 4.1 12/16/97 E" at BFC7FF32h (none before v2.0)
+    p = fmt_bios(fmt_str(p, "\nbios="));
+    p = fmt_str(p, "\nbios_crc="); p = fmt_hex(p, crc32((const void *)0xBFC00000, 0x80000), 8);
+    p = fmt_str(p, "\nmodel="); p = fmt_str(p, bios_model());
+    p = fmt_str(p, "\nstarted=");
+#if defined(BOOTDISC)
+    p = fmt_str(p, "ram");
+#else
+    p = fmt_str(p, "rom");
+#endif
+    p = fmt_str(p, "\nswitch="); p = fmt_str(p, (*(volatile u8 *)0x1F060000 & 1) ? "on" : "off");
+    p = fmt_str(p, "\ncd_unlocked="); p = fmt_dec(p, cd_unlocked);
+    extern char *fmt_banks(char *p);
+    p = fmt_banks(fmt_str(p, "\nbanks="));
     fmt_str(p, "\n");
     x_text(X_INFO, X_OK, t);
 }

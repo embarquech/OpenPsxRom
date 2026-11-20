@@ -47,7 +47,7 @@ Menu
 Tools
    CD browser (run an EXE, flash a .ROM, play an .STR), CD audio player, VRAM viewer, memory card
    manager (two panes: memory card / cartridge, animated icons), controller test, hex editor,
-   cartridge information (flash chips, protection, CRC).
+   cartridge (flash chip, protection, what each bank holds and its CRC, switch).
 
 While a game runs
    In-game menu (Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT): cheats on/off, code finder. printf/TTY to the serial
@@ -55,5 +55,6 @@ While a game runs
    forcing (PAL/NTSC).
 
 Boot log
-   Every boot prints the BIOS version, the flash chip(s) and IDs, the switch and bank settings, the
+   Every boot prints the BIOS version and CRC32, the console model, the flash chip(s), IDs and
+   size, what each bank holds, where OpenPsxRom started from, the switch and bank settings, the
    pads, the memory cards and the CD state on the serial port.

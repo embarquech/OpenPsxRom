@@ -103,6 +103,7 @@ int cd_read(u32 lba, u32 n, u8 *dst) {
 
 // "nocash" unlock (psx-spx, CDROM secret unlock commands 50h-57h): after it, the drive reads
 // discs without the licence wobble (burned discs) until the lid is opened. Works on PAL/US drives.
+int cd_unlocked;
 int cd_unlock(int pal) {
     static const char *const s[] = {"Licensed by", "Sony", "Computer", "Entertainment"};
     cd_cmd(0x50, 0, 0); cd_wait(500000);
@@ -111,7 +112,9 @@ int cd_unlock(int pal) {
     cd_cmd(0x55, (const u8 *)region, strlen(region)); cd_wait(500000);
     cd_cmd(0x56, 0, 0); cd_wait(500000);
     cd_cmd(0x57, 0, 0);                 // ends the sequence
-    return cd_wait(500000) == 3 ? 0 : -1;
+    if (cd_wait(500000) != 3) return -1;
+    cd_unlocked = 1;
+    return 0;
 }
 
 // ---------------------------------------------------------------- ISO9660

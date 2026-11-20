@@ -32,7 +32,7 @@ cart: build/config.h
 ifeq ($(CONFIG_TARGET_BANK3),y)
 	$(MAKE) bank3
 	cp build/openrom_bank3.rom build/cart.rom
-	@echo "build/cart.rom ready: make flash3 IMG=build/cart.rom, then nops /exe build/flash3.exe"
+	@echo "build/cart.rom ready: python tools/psx.py flash build/cart.rom (fallback: make flash3 IMG=build/cart.rom)"
 else ifeq ($(CONFIG_TARGET_DATEL),y)
 	$(MAKE) arcart DUMP=$(subst ",,$(CONFIG_DATEL_DUMP))
 	cp build/openrom_arcart.rom build/cart.rom

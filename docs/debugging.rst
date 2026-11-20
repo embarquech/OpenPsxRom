@@ -9,9 +9,12 @@ Boot log
 Open a terminal on the port and reset the console::
 
    OpenPsxRom 0.7 (Nov 20 2026 10:00:00) starting
-   BIOS: System ROM Version 4.1 12/16/97 E
+   BIOS: System ROM Version 4.1 12/16/97 E, CRC32 318178BF
+   Console: SCPH-7002/7502/9002
    Video: PAL (50 Hz)
-   Flash: SST 29EE020 (ID BF/10), ROM CRC 183F4277
+   Flash: SST 29EE020 (ID BF/10), 256 KB, ROM CRC 183F4277
+   Banks: 1 OpenPsxRom, 2 Unirom, 3 empty
+   Started from: ROM bank 1
    Flash @40000h: second chip present (not probed)
    Cheats: 0 codes, saves in flash: 0
    Switch: on, off at power-on = ROM bank 2; firmware in bank 2: yes, bank 3: no
@@ -19,9 +22,20 @@ Open a terminal on the port and reset the console::
    Pad 2: none
    Card 1: PS1 card, 3 blocks used, 12 free
    Card 2: none
-   CD: lid closed
+   CD: lid closed, locked
    Serial: 115200 bauds, nops commands accepted
    OpenPsxRom 0.7 ready
+
+* **BIOS**: its version string (none before v2.0) and the CRC32 of the whole 512 KB, the same as
+  ``zlib.crc32`` of a dump: compare it with known BIOS dumps.
+* **Console**: the models that shipped with this BIOS, from its version and region. One BIOS went
+  into several models (4.1 E: SCPH-7002, 7502 and 9002), which nothing in software tells apart.
+* **Banks**: what each bank of the cartridge holds (known firmware names, else the text of its
+  header). **Started from**: the cartridge (and which build) or an EXE in RAM (boot disc,
+  ``nops /exe``).
+* **CD**: ``unlocked`` once the drive accepted the unlock of the menu; the drive itself cannot be
+  asked, so at power-on this is always ``locked``. ``psx.py info`` (``cd_unlocked``) gives the
+  state later.
 
 Load and run code
 -----------------

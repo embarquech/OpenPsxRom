@@ -94,6 +94,7 @@ int cd_init(void);
 int cd_lid_open(void);
 int cd_read(u32 lba, u32 n, u8 *dst);
 int cd_unlock(int pal);
+extern int cd_unlocked;                        // 1 after a cd_unlock() the drive accepted
 int iso_root(u32 *lba, u32 *size);
 int iso_list(u32 lba, u32 size, CdEntry *e, int max);
 int cda_tracks(int *first, int *last);
@@ -108,7 +109,8 @@ int str_play(u32 lba, u32 size, char *err);          // strplay.c
 
 // mcard.c
 // has_icon: number of icon frames (0 = none, 1..3; 2-3 = animated)
-typedef struct { char name[21]; char title[33]; u8 blocks, first, has_icon; u32 size; u16 clut[16]; u8 icon[3][128]; } McEntry;
+// deleted: a save erased from the card (directory A1h-A3h) whose blocks are all still there
+typedef struct { char name[21]; char title[33]; u8 blocks, first, has_icon, deleted; u32 size; u16 clut[16]; u8 icon[3][128]; } McEntry;
 int mc_read_frame(int port, int f, u8 *buf);
 int mc_write_frame(int port, int f, const u8 *buf);
 int mc_put_frame(int port, int f, const u8 *buf);
@@ -120,6 +122,7 @@ void mc_parse_header(const u8 *hdr, const u8 *icons, McEntry *e);   // icons: th
 int mc_read_file(int port, const McEntry *e, u8 *dst, u8 *dirf);
 int mc_write_file(int port, const u8 *dirf, const u8 *src, int blocks);
 int mc_delete_file(int port, const McEntry *e);
+int mc_undelete_file(int port, const McEntry *e);   // 0 ok, -1 card error, -2 no longer whole, -3 name taken
 
 // store.c (saves kept in the cartridge flash)
 int store_load(void);
@@ -156,6 +159,8 @@ char *fmt_dec(char *p, u32 v);
 char *fmt_str(char *p, const char *s);
 u32 crc32(const void *p, u32 n);
 u32 crc32_upd(u32 crc, const void *p, u32 n);   // zlib-style running CRC32
+char *fmt_bios(char *p);                        // BIOS version string
+const char *bios_model(void);                   // console model guessed from the BIOS version/region
 
 // crt.s
 void bios_return(void) __attribute__((noreturn));

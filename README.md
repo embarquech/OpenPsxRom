@@ -14,7 +14,7 @@ through the same serial protocol, so the existing `nops` tool works with it.
 | | |
 |---|---|
 | ![Main menu](docs/menu.png) | ![Boot options](docs/boot-options.png) |
-| ![Tools](docs/tools.png) | ![Cartridge info](docs/cartridge.png) |
+| ![Tools](docs/tools.png) | ![Cartridge](docs/cartridge.png) |
 
 ## Highlights
 
@@ -41,8 +41,9 @@ through the same serial protocol, so the existing `nops` tool works with it.
 - Cheats (GameShark format), stored in the cartridge flash, applied on every interrupt
 - Tools: CD browser (run an EXE, flash a .ROM, play an .STR), CD audio player, VRAM viewer,
   memory card manager (two panes: memory card / cartridge, with animated icons), controller test,
-  hex editor, cartridge info
-- Detailed boot log on the serial port (BIOS, flash chips, switch, pads, memory cards, CD)
+  hex editor, cartridge (chip, banks, switch)
+- Detailed boot log on the serial port (BIOS and its CRC32, console model, flash chips, banks,
+  switch, pads, memory cards, CD)
 
 **While a game runs** (small resident core at 8000C000h + code executed from the cartridge ROM)
 - In-game menu: Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT (cheats on/off, code finder)
@@ -115,7 +116,8 @@ v18 (`/dest COMx`; older builds take the port as last argument). The serial line
 both are needed); the console goes back to 115200 after that command.
 
 **Boot log.** Open a terminal on the port at 115200 and reset the console: OpenPsxRom prints the
-BIOS version, the flash chip(s) and their IDs, the switch and bank settings, pads, memory cards, CD.
+BIOS version and CRC32, the console model, the flash chip(s), their IDs and what each bank holds,
+the switch and bank settings, pads, memory cards, CD.
 
 **Load and run code** (from the OpenPsxRom menu):
 ```

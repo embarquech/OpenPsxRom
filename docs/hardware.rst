@@ -19,8 +19,11 @@ Cartridges
      - Second chip at 1F040000h; 384 KB addressable, the Xplorer registers sit at 1F060000h.
        Bank 3 used on hardware. The second chip is never sent a command outside a write (seen
        once without its software data protection: every command byte was then stored as data,
-       and the ID probe at each boot wiped it). Write bank 3 with ``make flash3 IMG=...``
-       (``build/flash3.exe``, run with ``nops /exe``), which writes and reads back 128 KB.
+       and the ID probe at each boot wiped it). Bank 3 is written like the others
+       (``python tools/psx.py flash`` or ``nops /rom`` with an image built for 1F040000h; tested
+       with Caetla 0.38, read back identical). Fallback: ``make flash3 IMG=...``
+       (``build/flash3.exe``, run with ``nops /exe``), which writes and reads back 128 KB without
+       screen or interrupts.
    * - Xplorer FX, single 512 KB chip
      - Winbond W29C040 (reported on forums)
      - Not tested. Unknown chips are reported with their ID in the boot log.
@@ -71,7 +74,7 @@ tested) to bank 2 or 3. It unpacks Caetla's compressed RAM modules to move their
 and points its Action Replay port reads (which fall inside bank 2 on an Xplorer) at erased flash::
 
    python tools/caetla_reloc.py caetla.bin 2 build/caetla_bank2.rom   # then nops /rom
-   python tools/caetla_reloc.py caetla.bin 3 build/caetla_bank3.rom   # then make flash3 IMG=...
+   python tools/caetla_reloc.py caetla.bin 3 build/caetla_bank3.rom   # then psx.py flash
 
 Do not save Caetla's settings from a relocated copy: its own flash routines address the chip as in
 bank 1 and would write over OpenPsxRom's settings page. Unirom's own installer always writes bank 1: use ``nops /rom`` with OpenPsxRom, which
@@ -104,6 +107,6 @@ to the BIOS, after restoring what Datel's code changed on the way. ``tools/arcar
 that the dump is that firmware, keeps the locked sectors byte for byte (a flash skips them as
 unchanged) and Datel's settings word at 13F80h. Sector 6 holds one memory card save, sector 7 the
 cheats: ``psx.py flash`` keeps both (``nops /rom`` writes the whole 128 KB, so erases them). This build
-has no ``.STR`` video player (no room left in sectors 1-4). The Cartridge banks screen only shows
-bank 1: a 128 KB chip has no bank 2, and nothing answers at 1F040000h.
+has no ``.STR`` video player (no room left in sectors 1-4). Its Cartridge screen shows the chip and
+the ROM's CRC only: a 128 KB chip has no bank 2, and nothing answers at 1F040000h.
 
