@@ -1,0 +1,58 @@
+# OpenPsxRom default configuration (python tools/kconfig.py defconfig)
+
+#
+# Cartridge
+#
+CONFIG_TARGET_BANK1=y
+# CONFIG_TARGET_BANK3 is not set
+# CONFIG_TARGET_DATEL is not set
+# end of Cartridge
+
+#
+# Main menu
+#
+CONFIG_UNLOCK=y
+CONFIG_CHEATS=y
+CONFIG_RESTART=y
+# end of Main menu
+
+#
+# Tools
+#
+CONFIG_CD_BROWSER=y
+CONFIG_STR_PLAYER=y
+CONFIG_CD_AUDIO=y
+CONFIG_VRAM_VIEWER=y
+CONFIG_MEMCARDS=y
+CONFIG_PADTEST=y
+CONFIG_HEXEDIT=y
+CONFIG_CART_INFO=y
+CONFIG_CART_BANKS=y
+# end of Tools
+
+#
+# Serial port
+#
+CONFIG_OPX_LINK=y
+CONFIG_SHOT=y
+CONFIG_MCARD_SERIAL=y
+# end of Serial port
+
+#
+# Boot options: defaults
+#
+
+#
+# Used until they are changed in the Boot options screen
+#
+CONFIG_DEF_INGAME_MENU=y
+# CONFIG_DEF_SERIAL_DEBUG is not set
+# CONFIG_DEF_PRINTF is not set
+CONFIG_DEF_CRASH_SCREEN=y
+CONFIG_DEF_SWITCH_OFF_BYPASS=y
+# CONFIG_DEF_SWITCH_OFF_BANK2 is not set
+# CONFIG_DEF_SWITCH_OFF_BANK3 is not set
+CONFIG_DEF_VIDEO_GAME=y
+# CONFIG_DEF_VIDEO_PAL is not set
+# CONFIG_DEF_VIDEO_NTSC is not set
+# end of Boot options: defaults

@@ -6,6 +6,8 @@
 !/LICENSE
 !/README.md
 !/Makefile
+!/Kconfig
+!/configs/
 !/rom.ld
 !/exe.ld
 !/exe_lo.ld
@@ -32,6 +34,8 @@
 !/tools/caetla_reloc.py
 !/tools/arcart_image.py
 !/tools/psx.py
+!/tools/kconfig.py
+!/tools/cheats.py
 
 __pycache__/
 *.o
@@ -42,3 +46,8 @@ __pycache__/
 
 # Sphinx output
 /docs/_build/
+
+# local build configuration (make menuconfig)
+/.config
+/.config.old
+/configs/*.old

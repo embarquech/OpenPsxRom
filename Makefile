@@ -11,6 +11,37 @@ SRC := src/header.s src/crt.s src/main.c src/gfx.c src/pad.c src/sio.c src/proto
 OBJ := $(patsubst src/%,build/%.o,$(SRC)) build/core_blob.o
 
 all: build/openrom.rom
+
+# Build configuration (Kconfig): python tools/kconfig.py menuconfig, then make cart -> build/cart.rom.
+# Without a .config, configs/defconfig: the standard build. C files see build/config.h.
+CONFIG ?= .config
+-include $(CONFIG)
+# checked at every make (CONFIG may change): rewritten only when its content changes
+build/config.h: FORCE
+	@python tools/kconfig.py header $(CONFIG) $@
+FORCE:
+CCFG := -include build/config.h
+# the pre-boot code (src/header.s) gets the switch OFF default as an assembler symbol
+DEF_SWITCH_OFF := $(if $(filter y,$(CONFIG_DEF_SWITCH_OFF_BANK2)),2,$(if $(filter y,$(CONFIG_DEF_SWITCH_OFF_BANK3)),3,0))
+menuconfig:
+	python tools/kconfig.py menuconfig
+defconfig:
+	python tools/kconfig.py defconfig
+# the cartridge type chosen in menuconfig, with its options -> build/cart.rom
+cart: build/config.h
+ifeq ($(CONFIG_TARGET_BANK3),y)
+	$(MAKE) bank3
+	cp build/openrom_bank3.rom build/cart.rom
+	@echo "build/cart.rom ready: make flash3 IMG=build/cart.rom, then nops /exe build/flash3.exe"
+else ifeq ($(CONFIG_TARGET_DATEL),y)
+	$(MAKE) arcart DUMP=$(subst ",,$(CONFIG_DATEL_DUMP))
+	cp build/openrom_arcart.rom build/cart.rom
+	@echo "build/cart.rom ready: python tools/psx.py flash build/cart.rom"
+else
+	$(MAKE) build/openrom.rom
+	cp build/openrom.rom build/cart.rom
+	@echo "build/cart.rom ready: python tools/psx.py flash build/cart.rom"
+endif
 # Datel cart with locked sectors 0 and 5 ("PS Hacker (Version 1999)"): OpenPsxRom at 1F005200h,
 # entered through two hooks; DUMP = a /dump of that cart (128 KB) -> build/openrom_arcart.rom
 DUMP ?= backup/ar_cart_128k.bin
@@ -39,12 +70,12 @@ bank3:
 disc: release/openrom.bin
 lo: build/openrom_lo.exe
 
-build/%.s.o: src/%.s
+build/%.s.o: src/%.s build/config.h
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -I src/str -c $< -o $@
-build/%.c.o: src/%.c src/rom.h src/shared.h
+	$(CC) $(CFLAGS) -Wa,--defsym,DEF_SWITCH_OFF=$(DEF_SWITCH_OFF) -I src/str -c $< -o $@
+build/%.c.o: src/%.c src/rom.h src/shared.h build/config.h
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(CCFG) -c $< -o $@
 # resident core: linked at 8000C000h, embedded in the ROM payload as data
 build/core.elf: core/core.c core/bp.s core/core.ld src/shared.h
 	@mkdir -p build
@@ -68,9 +99,9 @@ BD_OBJ := $(patsubst src/%,build/bd/%.o,$(filter-out src/header.s src/romx.c,$(S
 build/bd/%.s.o: src/%.s
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -DBOOTDISC -I src/str -c $< -o $@
-build/bd/%.c.o: src/%.c src/rom.h
+build/bd/%.c.o: src/%.c src/rom.h build/config.h
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -DBOOTDISC -c $< -o $@
+	$(CC) $(CFLAGS) $(CCFG) -DBOOTDISC -c $< -o $@
 build/rom_blob.o: build/openrom.rom
 	cd build && $(BOBJCOPY) -I binary -O elf32-littlemips -B mips --rename-section .data=.rodata,alloc,load,readonly,data,contents openrom.rom rom_blob.o
 build/openrom_exe.elf: $(BD_OBJ) exe.ld
@@ -91,4 +122,4 @@ release/openrom.bin: build/openrom.exe build/openrom.rom tools/mkdisc.py
 
 clean:
 	rm -rf build release
-.PHONY: lo all disc clean
+.PHONY: lo all disc clean cart menuconfig defconfig

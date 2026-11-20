@@ -659,11 +659,11 @@ static void screen_cd(void) {
                 } else if (is_rom(sel)) {
                     flash_from_cd(sel, err);
                 } else if (has_ext(sel, ".STR")) {
-#ifdef ARCART           // no room on the Datel cart (sectors 1-4 only): no video player there
-                    fmt_str(err, "no video player in this build");
-#else
+#if CONFIG_STR_PLAYER && !defined(ARCART)   // no room for it on a Datel cart (sectors 1-4 only)
                     str_play(cde[sel].lba, cde[sel].size, err);
                     pad_now = pad_old = pad_read();
+#else
+                    fmt_str(err, "no video player in this build");
 #endif
                 } else if (cd_color(sel) == C_OK) {
                     frame_begin("CD browser");
@@ -737,30 +737,66 @@ static void screen_hex(void) {
 }
 
 // ---------------------------------------------------------------- cheats (GameShark codes)
-// Kept in the cartridge flash at 1C000h: 'OCH1', u32 count, then count x (u32 address, u32 value |
-// enabled << 16). Applied by the resident core on every interrupt while the game runs.
+// Kept in the cartridge flash at 1C000h. 'OCH2': u32 lines, u32 cheats, char game[40], then lines x
+// (u32 address, u32 value | enabled << 16 | cheat << 24), and at +400h the cheat names (32 bytes
+// each). A cheat groups the lines of one code (tools/cheats.py writes them from a database).
+// 'OCH1' (older): the same lines without names, one cheat per line. Applied by the resident core
+// on every interrupt while the game runs.
 #define MAXCH 96
-typedef struct { u32 addr; u16 val; u8 on; } Cheat;
+#define CH_NAME 32
+typedef struct { u32 addr; u16 val; u8 on, grp; } Cheat;
 static Cheat ch[MAXCH];
-static int nch;
+static int nch, ngrp;
+static char ch_name[MAXCH][CH_NAME], ch_game[40];
 
-static void cheats_load(void) {
+void cheats_load(void) {             // also after tools/cheats.py wrote the area (protocol.c)
     const u32 *f = (const u32 *)(FLASH_BASE + FL_CHEAT_OFF);
-    nch = 0;
-    if (f[0] != 0x3148434Fu || f[1] > MAXCH) return;          // "OCH1"
+    const char *names = (const char *)f + 0x400;
+    int v2 = f[0] == 0x3248434Fu;                                  // "OCH2"
+    nch = ngrp = 0;
+    ch_game[0] = 0;
+    if ((f[0] != 0x3148434Fu && !v2) || f[1] > MAXCH) return;      // "OCH1"
+    const u32 *l = v2 ? f + 13 : f + 2;
+    u32 g = v2 ? f[2] : f[1];
+    if (g > MAXCH) return;
     for (u32 i = 0; i < f[1]; i++) {
-        ch[i].addr = f[2 + i * 2];
-        ch[i].val = (u16)f[3 + i * 2];
-        ch[i].on = (f[3 + i * 2] >> 16) & 1;
+        ch[i].addr = l[i * 2];
+        ch[i].val = (u16)l[i * 2 + 1];
+        ch[i].on = (l[i * 2 + 1] >> 16) & 1;
+        ch[i].grp = v2 ? (u8)(l[i * 2 + 1] >> 24) : (u8)i;
+        if (ch[i].grp >= g) return;
+    }
+    for (u32 k = 0; k < g; k++) {
+        int n = 0;
+        while (v2 && n < CH_NAME - 1 && names[k * CH_NAME + n] >= 32 && names[k * CH_NAME + n] < 127) {
+            ch_name[k][n] = names[k * CH_NAME + n];
+            n++;
+        }
+        ch_name[k][n] = 0;
+    }
+    for (int n = 0; v2 && n < 39; n++) {
+        char c = ((const char *)(f + 3))[n];
+        if (c < 32 || c >= 127) break;
+        ch_game[n] = c;
+        ch_game[n + 1] = 0;
     }
     nch = f[1];
+    ngrp = g;
 }
 static int cheats_save(void) {
     u32 *b = (u32 *)0x80100000;
     memset(b, 0xFF, 0x4000);
-    b[0] = 0x3148434Fu;
+    b[0] = 0x3248434Fu;
     b[1] = nch;
-    for (int i = 0; i < nch; i++) { b[2 + i * 2] = ch[i].addr; b[3 + i * 2] = ch[i].val | ((u32)ch[i].on << 16); }
+    b[2] = ngrp;
+    memset(b + 3, 0, 40);
+    memcpy(b + 3, ch_game, strlen(ch_game));
+    for (int i = 0; i < nch; i++) {
+        b[13 + i * 2] = ch[i].addr;
+        b[14 + i * 2] = ch[i].val | ((u32)ch[i].on << 16) | ((u32)ch[i].grp << 24);
+    }
+    memset((u8 *)b + 0x400, 0, ngrp * CH_NAME);
+    for (int k = 0; k < ngrp; k++) memcpy((u8 *)b + 0x400 + k * CH_NAME, ch_name[k], strlen(ch_name[k]));
     memcpy(b + (FL_CFG_OFF - FL_CHEAT_OFF) / 4, (const void *)(FLASH_BASE + FL_CFG_OFF), 128);   // keep the settings
     return flash_area(FL_CHEAT_OFF, (u8 *)b, 0x4000);
 }
@@ -779,7 +815,12 @@ int rom_bank_ok(int bank) {
     u32 e = *(const u32 *)(b + 0x80);
     return e >= b && e < b + 0x20000u;
 }
-static int cfg_bank(void) { int v = cfg_flags() & CFG_BANK_MASK; return v == 1 ? 2 : v; }
+static int cfg_bank(void) {
+    if (*(const u32 *)(FLASH_BASE + FL_CFG_OFF) != CFG_MAGIC)     // nothing saved: build default
+        return CONFIG_DEF_SWITCH_OFF_BANK2 ? 2 : CONFIG_DEF_SWITCH_OFF_BANK3 ? 3 : 0;
+    int v = cfg_flags() & CFG_BANK_MASK;
+    return v == 1 ? 2 : v;
+}
 static int cfg_save(u32 flags) {
     u32 *b = (u32 *)0x80100000;
     memcpy(b, (const void *)(FLASH_BASE + FL_CHEAT_OFF), 0x4000);
@@ -804,10 +845,11 @@ extern const u8 _binary_core_bin_start[], _binary_core_bin_end[];
 static int opt_debug = 1, opt_tty = 1, opt_crash = 1, opt_video = VIDEO_TEST;
 #elif defined(NOCORE)
 static int opt_debug, opt_tty, opt_crash, opt_video;
-#else
-static int opt_debug, opt_tty, opt_crash = 1, opt_video;
+#else                        // defaults set in make menuconfig (Boot options: defaults)
+static int opt_debug = CONFIG_DEF_SERIAL_DEBUG, opt_tty = CONFIG_DEF_PRINTF, opt_crash = CONFIG_DEF_CRASH_SCREEN,
+           opt_video = CONFIG_DEF_VIDEO_PAL ? 1 : CONFIG_DEF_VIDEO_NTSC ? 2 : 0;
 #endif
-static int opt_menu = 1;     // video: 0 auto, 1 force PAL, 2 force NTSC
+static int opt_menu = CONFIG_DEF_INGAME_MENU;     // video: 0 auto, 1 force PAL, 2 force NTSC
 
 void core_boot(void);
 static int core_in;               // the core is in RAM and hooked: never hook it twice
@@ -842,7 +884,7 @@ static void screen_options(void) {
     int sel = 0;
     static const char *const vid[] = {"as the game", "force PAL (50 Hz)", "force NTSC (60 Hz)"};
     u32 cfg = cfg_flags(), cfg0 = cfg;
-    int bank = cfg_bank();                              // 0 bypass, 2 or 3
+    int bank = cfg_bank(), bank0 = bank;                // 0 bypass, 2 or 3
     static const char *const bank_name[] = {"bypass", "", "ROM bank 2", "ROM bank 3"};
     int any = rom_bank_ok(2) || rom_bank_ok(3);
     for (;;) {
@@ -871,7 +913,9 @@ static void screen_options(void) {
         help(G_LEFT " " G_RIGHT " change    " G_CIRCLE " back");
         frame_end();
         if (back()) {
-            if (cfg != cfg0 && cfg_save(cfg)) message("Boot options", "flash write error", 0, C_ERR);
+            // a bank choice equal to "nothing saved" (bypass) must still be saved over a default
+            if ((cfg != cfg0 || bank != bank0) && cfg_save((cfg & ~CFG_BANK_MASK) | (u32)bank))
+                message("Boot options", "flash write error", 0, C_ERR);
             return;
         }
         sel = list_move(6, sel) % 6;
@@ -1057,40 +1101,93 @@ static int edit_code(u32 *a, u16 *v) {
     }
 }
 
-static const char *cheat_label(int i, char *b) {
-    char *p = code_str(b, ch[i].addr, ch[i].val);
-    fmt_str(p, ch[i].on ? "      on" : "      off");
-    return b;
+static int grp_on(int g) { for (int i = 0; i < nch; i++) if (ch[i].grp == g) return ch[i].on; return 0; }
+static int grp_first(int g) { for (int i = 0; i < nch; i++) if (ch[i].grp == g) return i; return -1; }
+// a code added by hand: its own cheat, named after it
+static void grp_add(u32 a, u16 v) {
+    ch[nch].addr = a; ch[nch].val = v; ch[nch].on = 1; ch[nch].grp = (u8)ngrp;
+    ch_name[ngrp][0] = 0;
+    nch++; ngrp++;
 }
-static u32 cheat_color(int i) { return ch[i].on ? C_OK : C_DIM; }
+static void grp_del(int g) {
+    int k = 0;
+    for (int i = 0; i < nch; i++) {
+        if (ch[i].grp == g) continue;
+        ch[k] = ch[i];
+        if (ch[k].grp > g) ch[k].grp--;
+        k++;
+    }
+    nch = k;
+    for (int n = g; n < ngrp - 1; n++) memcpy(ch_name[n], ch_name[n + 1], CH_NAME);
+    ngrp--;
+}
 
+#define CROWS 9
 static void screen_cheats(void) {
     int sel = 0, top = 0, dirty = 0;
     for (;;) {
         frame_begin("Cheats");
-        if (nch == 0) {
+        if (ngrp == 0) {
             gfx_text(24, 60, C_DIM, "No code yet.");
-            gfx_text(24, 80, C_DIM, "Press " G_TRIANGLE " to add a GameShark code.");
-        } else list_draw(nch, sel, &top, cheat_label, cheat_color);
+            gfx_text(24, 80, C_DIM, "Press " G_TRIANGLE " to add a GameShark code,");
+            gfx_text(24, 92, C_DIM, "or send some with tools/cheats.py.");
+        } else {
+            gfx_text(16, 40, C_TEXT, ch_game[0] ? ch_game : "(no game named)");
+            if (sel < top) top = sel;
+            if (sel >= top + CROWS) top = sel - CROWS + 1;
+            for (int g = top; g < ngrp && g < top + CROWS; g++) {
+                int y = 56 + (g - top) * 12, on = grp_on(g);
+                char b[40];
+                if (ch_name[g][0]) {
+                    int n = 0;
+                    for (; n < CH_NAME - 1 && ch_name[g][n]; n++) b[n] = ch_name[g][n];
+                    b[n] = 0;
+                } else {
+                    int f = grp_first(g);
+                    code_str(b, ch[f].addr, ch[f].val);
+                }
+                if (g == sel) { gfx_grad(10, y - 2, 300, 12, 0xC07838, 0x602810); gfx_text(13, y, C_SEL, G_RIGHT); }
+                gfx_text(22, y, g == sel ? C_SEL : on ? C_TEXT : C_DIM, b);
+                gfx_text(300 - gfx_text_w(on ? "on" : "off"), y, on ? C_OK : C_DIM, on ? "on" : "off");
+            }
+            // the codes of the selected cheat: what it really writes
+            char b[48], *p = b;
+            int shown = 0, y = 170;
+            for (int i = 0; i < nch && y < 194; i++) {
+                if (ch[i].grp != sel) continue;
+                p = code_str(p, ch[i].addr, ch[i].val);
+                if (++shown % 3 == 0) { gfx_text(16, y, C_DIM, b); y += 11; p = b; }
+                else p = fmt_str(p, "  ");
+            }
+            if (shown % 3) { p[-2] = 0; gfx_text(16, y, C_DIM, b); }
+        }
         if (dirty) gfx_text(16, 196, C_ERR, "not saved: START saves to the cartridge");
-        help(G_CROSS " on/off " G_TRIANGLE " add " G_SQUARE " edit SEL del START save " G_CIRCLE);
+        help(G_CROSS " on/off " G_TRIANGLE " add " G_SQUARE " edit SEL del START save");
         frame_end();
         if (back()) { if (!dirty) return; dirty = 0; }       // second press leaves without saving
-        if (nch > 0) sel = list_move(nch, sel);
-        if (pressed(PAD_CROSS) && nch > 0) { ch[sel].on ^= 1; dirty = 1; }
-        if (pressed(PAD_TRIANGLE) && nch < MAXCH) {
+        if (ngrp > 0) {
+            if (moved(PAD_UP)) sel = (sel + ngrp - 1) % ngrp;
+            if (moved(PAD_DOWN)) sel = (sel + 1) % ngrp;
+        }
+        if (pressed(PAD_CROSS) && ngrp > 0) {
+            int on = !grp_on(sel);
+            for (int i = 0; i < nch; i++) if (ch[i].grp == sel) ch[i].on = (u8)on;
+            dirty = 1;
+        }
+        if (pressed(PAD_TRIANGLE) && nch < MAXCH && ngrp < MAXCH) {
             u32 a = 0x80000000; u16 v = 0;
-            if (nch > 0) a = ch[sel].addr;
-            if (edit_code(&a, &v)) { ch[nch].addr = a; ch[nch].val = v; ch[nch].on = 1; sel = nch++; dirty = 1; }
+            int f = ngrp > 0 ? grp_first(sel) : -1;
+            if (f >= 0) a = ch[f].addr;
+            if (edit_code(&a, &v)) { grp_add(a, v); sel = ngrp - 1; dirty = 1; }
         }
-        if (pressed(PAD_SQUARE) && nch > 0) {
-            u32 a = ch[sel].addr; u16 v = ch[sel].val;
-            if (edit_code(&a, &v)) { ch[sel].addr = a; ch[sel].val = v; dirty = 1; }
+        if (pressed(PAD_SQUARE) && ngrp > 0) {                // the cheat's first line
+            int f = grp_first(sel);
+            u32 a = ch[f].addr; u16 v = ch[f].val;
+            if (edit_code(&a, &v)) { ch[f].addr = a; ch[f].val = v; dirty = 1; }
         }
-        if (pressed(PAD_SELECT) && nch > 0) {
-            for (int i = sel; i < nch - 1; i++) ch[i] = ch[i + 1];
-            nch--;
-            if (sel >= nch && sel > 0) sel--;
+        if (pressed(PAD_SELECT) && ngrp > 0) {
+            grp_del(sel);
+            if (sel >= ngrp && sel > 0) sel--;
             dirty = 1;
         }
         if (pressed(PAD_START)) {
@@ -1177,22 +1274,66 @@ static void screen_padtest(void) {
 }
 
 // ---------------------------------------------------------------- tools submenu
+// Each tool can be left out of the build (make menuconfig): the lists below are built by the
+// compiler from constants, and the call of a disabled tool is removed with its code.
+#define T_ON(x) ((x) ? 1 : 0)
+enum { T_COUNT = T_ON(CONFIG_CD_BROWSER) + T_ON(CONFIG_CD_AUDIO) + T_ON(CONFIG_VRAM_VIEWER) + T_ON(CONFIG_MEMCARDS) +
+                 T_ON(CONFIG_PADTEST) + T_ON(CONFIG_HEXEDIT) + T_ON(CONFIG_CART_INFO) + T_ON(CONFIG_CART_BANKS) };
 static void screen_tools(void) {
-    static const char *const items[] = {
-        "CD browser", "CD audio player", "VRAM viewer", "Memory cards", "Controller test", "Hex editor", "Cartridge info",
+    static const char *const items[T_COUNT + 1] = {
+#if CONFIG_CD_BROWSER
+        "CD browser",
+#endif
+#if CONFIG_CD_AUDIO
+        "CD audio player",
+#endif
+#if CONFIG_VRAM_VIEWER
+        "VRAM viewer",
+#endif
+#if CONFIG_MEMCARDS
+        "Memory cards",
+#endif
+#if CONFIG_PADTEST
+        "Controller test",
+#endif
+#if CONFIG_HEXEDIT
+        "Hex editor",
+#endif
+#if CONFIG_CART_INFO
+        "Cartridge info",
+#endif
+#if CONFIG_CART_BANKS
         "Cartridge banks",
+#endif
     };
-    static const char *const desc[] = {
+    static const char *const desc[T_COUNT + 1] = {
+#if CONFIG_CD_BROWSER
         "Run an EXE, play a .STR, flash a .ROM.",
+#endif
+#if CONFIG_CD_AUDIO
         "Play the audio tracks of a CD.",
+#endif
+#if CONFIG_VRAM_VIEWER
         "Look at the video memory (like Caetla).",
+#endif
+#if CONFIG_MEMCARDS
         "Files and free blocks of both slots.",
+#endif
+#if CONFIG_PADTEST
         "Buttons and analog sticks of both pads.",
+#endif
+#if CONFIG_HEXEDIT
         "View / edit RAM, ROM, BIOS, scratchpad.",
+#endif
+#if CONFIG_CART_INFO
         "Flash chip, protection, ROM checksum.",
+#endif
+#if CONFIG_CART_BANKS
         "Which program is in which bank.",
+#endif
     };
-    enum { N = sizeof items / sizeof items[0] };
+    enum { N = T_COUNT };
+    if (!N) return;
     static int sel;
     for (;;) {
         frame_begin("Tools");
@@ -1207,16 +1348,15 @@ static void screen_tools(void) {
         if (back()) return;
         sel = list_move(N, sel);
         if (pressed(PAD_CROSS)) {
-            switch (sel) {
-            case 0: screen_cd(); break;
-            case 1: screen_audio(); break;
-            case 2: screen_vram(); break;
-            case 3: screen_cards(); break;
-            case 4: screen_padtest(); break;
-            case 5: screen_hex(); break;
-            case 6: screen_cart(); break;
-            case 7: screen_banks(); break;
-            }
+            int k = 0;                                  // the selected line -> its tool
+            if (CONFIG_CD_BROWSER && sel == k++) screen_cd();
+            else if (CONFIG_CD_AUDIO && sel == k++) screen_audio();
+            else if (CONFIG_VRAM_VIEWER && sel == k++) screen_vram();
+            else if (CONFIG_MEMCARDS && sel == k++) screen_cards();
+            else if (CONFIG_PADTEST && sel == k++) screen_padtest();
+            else if (CONFIG_HEXEDIT && sel == k++) screen_hex();
+            else if (CONFIG_CART_INFO && sel == k++) screen_cart();
+            else if (CONFIG_CART_BANKS && sel == k++) screen_banks();
         }
     }
 }
@@ -1437,23 +1577,56 @@ int main(void) {
 #ifdef MENUTEST
     ch[0].addr = 0x800F1234; ch[0].val = 0x0063; ch[0].on = 1;
     ch[1].addr = 0x300F1238; ch[1].val = 0x0009; ch[1].on = 0;
-    nch = 2;
+    ch[0].grp = 0; ch[1].grp = 1; nch = ngrp = 2;
 #endif
+    // entries left out by make menuconfig: not in the lists, ids[] maps a line to its entry
     static const char *const items[] = {
-        "Boot CD", "Unlock drive + boot CD", "Boot options", "Cheats", "Tools", "About", "Restart",
+        "Boot CD",
+#if CONFIG_UNLOCK
+        "Unlock drive + boot CD",
+#endif
+        "Boot options",
+#if CONFIG_CHEATS
+        "Cheats",
+#endif
+        "Tools", "About",
+#if CONFIG_RESTART
+        "Restart",
+#endif
 #ifdef BOOTDISC
         "Install OpenPsxRom to cartridge",
 #endif
     };
     static const char *const desc[] = {
         "Start the disc in the drive.",
+#if CONFIG_UNLOCK
         "For burned discs (no modchip needed).",
+#endif
         "Serial debug, printf, crash screen, PAL/NTSC.",
+#if CONFIG_CHEATS
         "GameShark codes, applied while the game runs.",
+#endif
         "CD browser, CD audio, VRAM, memory cards...",
         "What OpenPsxRom can do.",
+#if CONFIG_RESTART
         "Restart the console (as the reset button).",
+#endif
         "Write OpenPsxRom " OPENROM_VERSION " to the cartridge flash.",
+    };
+    static const u8 ids[] = {
+        M_BOOT,
+#if CONFIG_UNLOCK
+        M_UNLOCK,
+#endif
+        M_OPTIONS,
+#if CONFIG_CHEATS
+        M_CHEATS,
+#endif
+        M_TOOLS, M_ABOUT,
+#if CONFIG_RESTART
+        M_RESTART,
+#endif
+        M_INSTALL,
     };
     enum { N = sizeof items / sizeof items[0] };
     int sel = 0;
@@ -1529,8 +1702,9 @@ int main(void) {
         { static int t; if (++t == 60) boot = 1; }
 #endif
         if (pressed(PAD_CROSS) || pressed(PAD_START)) {
-            if (sel == M_BOOT) boot = 1;
-            if (sel == M_UNLOCK) {
+            int id = ids[sel];
+            if (id == M_BOOT) boot = 1;
+            if (CONFIG_UNLOCK && id == M_UNLOCK) {
                 frame_begin("Unlock");
                 gfx_text(24, 100, C_TEXT, "unlocking the drive...");
                 gfx_flip();
@@ -1538,16 +1712,16 @@ int main(void) {
                 if (cd_unlock(gfx_pal) == 0) boot = 1;
                 else message("Unlock", "the drive did not accept the unlock", "(Japanese drive, or emulator?)", C_ERR);
             }
-            if (sel == M_OPTIONS) screen_options();
-            if (sel == M_CHEATS) screen_cheats();
-            if (sel == M_TOOLS) screen_tools();
-            if (sel == M_ABOUT) screen_about();
-            if (sel == M_RESTART) {                     // like the REST serial command: BIOS entry
+            if (id == M_OPTIONS) screen_options();
+            if (CONFIG_CHEATS && id == M_CHEATS) screen_cheats();
+            if (id == M_TOOLS) screen_tools();
+            if (id == M_ABOUT) screen_about();
+            if (CONFIG_RESTART && id == M_RESTART) {                     // like the REST serial command: BIOS entry
                 gfx_shutdown();
                 exec_jump(0xBFC00000, 0, 0x801FFF00);
             }
 #ifdef BOOTDISC
-            if (sel == M_INSTALL) install_rom();
+            if (id == M_INSTALL) install_rom();
 #endif
         }
         if (boot) {

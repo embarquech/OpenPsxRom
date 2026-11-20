@@ -112,6 +112,9 @@ preboot:
     b       1f                  # the bank 3 build was chosen by the switch already: start here
     nop
 .endif
+.ifndef DEF_SWITCH_OFF
+    .set DEF_SWITCH_OFF, 0      # switch OFF with no settings saved: bypass (Makefile: menuconfig)
+.endif
 .ifdef ARCART
     b       1f                  # Datel cart build: called by the hooks (no switch, no other bank)
     nop
@@ -138,11 +141,11 @@ preboot:
     lui     $t0, 0x1F02
     lw      $t1, -0x80($t0)     # 1F01FF80h: settings magic
     li      $t2, 0x3146434F     # "OCF1"
-    bne     $t1, $t2, 2f
+    bne     $t1, $t2, 4f        # no settings yet: the default chosen in make menuconfig
     lw      $t1, -0x7C($t0)     # 1F01FF84h: settings flags (load delay covered by the branch)
     nop
     andi    $t1, $t1, 0xFF      # 0 bypass, 1/2 bank 2 (1F020000h), 3 bank 3 (1F040000h)
-    beqz    $t1, 2f
+6:  beqz    $t1, 2f
     li      $t2, 3
     bne     $t1, $t2, 3f
     nop
@@ -165,6 +168,8 @@ preboot:
     nop
 2:  jr      $ra
     nop
+4:  b       6b
+    li      $t1, DEF_SWITCH_OFF # (delay slot)
 1:  MARK    0x31                # '1': switch read ON
     mtc0    $zero, $7           # DCIC: breakpoints off while installing
     nop

@@ -30,7 +30,7 @@ try:
 except ImportError:
     sys.exit('psx.py needs pyserial: pip install pyserial')
 
-PING, INFO, BAUD, READ, WRITE, LZWR, CRCS, COPY, FLASH, EXEC, RESET, PROG, END = range(13)
+PING, INFO, BAUD, READ, WRITE, LZWR, CRCS, COPY, FLASH, EXEC, RESET, PROG, END, FLAREA = range(14)
 NAMES = ['ok', 'damaged frame', 'bad arguments', 'refused', 'failed', 'unknown command']
 FLASH_BASE, BANK = 0x1F000000, 0x20000
 # The link has bit errors (more with many 0/1 transitions, the console's 117600 baud against the

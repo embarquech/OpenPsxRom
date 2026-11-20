@@ -1,0 +1,184 @@
+# OpenPsxRom build configuration: make menuconfig (tools/kconfig.py), then make cart.
+# Every option defaults to the standard build; a missing .config builds exactly that.
+
+mainmenu "OpenPsxRom $(OPENROM_VERSION) configuration"
+
+menu "Cartridge"
+
+choice TARGET
+	prompt "Cartridge type"
+	default TARGET_BANK1
+	help
+	  Where the image runs from. The cartridge itself is flashed with
+	  python tools/psx.py flash build/cart.rom (or nops /rom).
+
+config TARGET_BANK1
+	bool "Standard (bank 1 at 1F000000h: Xplorer, Datel, Caetla carts...)"
+	help
+	  The usual image: OpenPsxRom in the first 64 KB, card saves and
+	  cheats after it.
+
+config TARGET_BANK3
+	bool "Xplorer FX second chip (bank 3 at 1F040000h)"
+	help
+	  A second OpenPsxRom for the second chip of a double-bank Xplorer
+	  FX, started with switch OFF + Boot options. Written with
+	  make flash3 IMG=build/cart.rom.
+
+config TARGET_DATEL
+	bool "Datel cart with sectors 0 and 5 locked (PS Hacker 1999)"
+	help
+	  OpenPsxRom at 1F005200h, entered through hooks in the writable
+	  sectors. Needs a dump of the cart (below). Only 60 KB of room:
+	  leave out features if the build says it is too big.
+
+endchoice
+
+config DATEL_DUMP
+	string "Dump of the Datel cart (128 KB)"
+	depends on TARGET_DATEL
+	default "backup/ar_cart_128k.bin"
+	help
+	  nops /dump 0x1F000000 0x20000 FILE: the locked sectors are taken
+	  from it byte for byte.
+
+endmenu
+
+menu "Main menu"
+
+config UNLOCK
+	bool "Unlock drive + boot CD"
+	default y
+	help
+	  Boots burned discs without a modchip (drive unlock commands).
+
+config CHEATS
+	bool "Cheats (GameShark codes)"
+	default y
+	help
+	  The cheat list editor. The codes are applied in game by the
+	  resident core.
+
+config RESTART
+	bool "Restart"
+	default y
+
+endmenu
+
+menu "Tools"
+
+config CD_BROWSER
+	bool "CD browser (run an EXE, flash a .ROM)"
+	default y
+
+config STR_PLAYER
+	bool "STR video player (in the CD browser)"
+	depends on CD_BROWSER
+	default y if !TARGET_DATEL
+	help
+	  Plays .STR movies from the CD browser (about 3 KB).
+
+config CD_AUDIO
+	bool "CD audio player"
+	default y
+
+config VRAM_VIEWER
+	bool "VRAM viewer"
+	default y
+
+config MEMCARDS
+	bool "Memory cards (files, backup in the cartridge)"
+	default y
+
+config PADTEST
+	bool "Controller test"
+	default y
+
+config HEXEDIT
+	bool "Hex editor"
+	default y
+
+config CART_INFO
+	bool "Cartridge info"
+	default y
+
+config CART_BANKS
+	bool "Cartridge banks"
+	default y
+
+endmenu
+
+menu "Serial port"
+
+config OPX_LINK
+	bool "OPX1 extended link (tools/psx.py: differential flash, CRC frames)"
+	default y
+	help
+	  nops keeps working without it: only psx.py needs it (about 2 KB).
+
+config SHOT
+	bool "Screenshots (SHOT, tools/psxshot.py)"
+	default y
+
+config MCARD_SERIAL
+	bool "Memory card upload / download (nops /mcup, /mcdown)"
+	default y
+
+endmenu
+
+menu "Boot options: defaults"
+
+comment "Used until they are changed in the Boot options screen"
+
+config DEF_INGAME_MENU
+	bool "In-game menu (switch)"
+	default y
+
+config DEF_SERIAL_DEBUG
+	bool "Serial debug in game"
+	default n
+
+config DEF_PRINTF
+	bool "printf -> serial"
+	default n
+
+config DEF_CRASH_SCREEN
+	bool "Crash screen"
+	default y
+
+choice DEF_SWITCH_OFF
+	prompt "Switch OFF at power-on"
+	depends on TARGET_BANK1
+	default DEF_SWITCH_OFF_BYPASS
+	help
+	  What an Xplorer starts with its switch OFF, until it is set in the
+	  Boot options screen. A bank that holds no startable firmware falls
+	  back to bypass.
+
+config DEF_SWITCH_OFF_BYPASS
+	bool "bypass (normal boot, the cartridge stays invisible)"
+
+config DEF_SWITCH_OFF_BANK2
+	bool "ROM bank 2 (1F020000h)"
+
+config DEF_SWITCH_OFF_BANK3
+	bool "ROM bank 3 (1F040000h, second chip)"
+
+endchoice
+
+choice DEF_VIDEO
+	prompt "Video mode"
+	default DEF_VIDEO_GAME
+
+config DEF_VIDEO_GAME
+	bool "as the game"
+
+config DEF_VIDEO_PAL
+	bool "force PAL (50 Hz)"
+
+config DEF_VIDEO_NTSC
+	bool "force NTSC (60 Hz)"
+
+endchoice
+
+endmenu

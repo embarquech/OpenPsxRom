@@ -192,6 +192,11 @@ the session can send ``OPX1`` again inside it: the console answers ``OPXA`` and 
      - ``END``
      -
      - session closed, back to the menu's serial poll
+   * - 13
+     - ``FLAREA``
+     - offset, length, CRC32 of that much of ``rombuf``
+     - writes a data area of bank 1 (whole 16 KB sectors, never OpenPsxRom's code; refused if the
+       cartridge does not hold OpenPsxRom), then reloads the cheat list
 
 ``psx.py`` uses them as follows:
 
@@ -203,6 +208,8 @@ the session can send ``OPX1`` again inside it: the console answers ``OPXA`` and 
 * ``exe FILE`` / ``load FILE ADDR``: the data in compressed 1 KB pieces, then ``EXEC`` for an EXE.
 * ``dump ADDR LEN FILE`` / ``peek ADDR [LEN]``: ``READ`` in 1 KB pieces.
 * ``info``, ``ping``, ``reset``.
+* ``tools/cheats.py`` reads the cheat sector with ``READ`` and writes it back with ``FLAREA``
+  (see :ref:`cheat-database`).
 
 .. code-block:: sh
 

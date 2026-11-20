@@ -381,7 +381,7 @@ static void cmd_baud(void) {
 // frame is answered X_BADCRC (cmd FFh) and the PC sends it again. Commands: see tools/psx.py.
 #define X_MAX 4108                          // request payload: up to 12 bytes of arguments + 4 KB
 enum { X_PING = 0, X_INFO, X_BAUD, X_READ, X_WRITE, X_LZWR, X_CRCS, X_COPY, X_FLASH, X_EXEC,
-       X_RESET, X_PROG, X_END };
+       X_RESET, X_PROG, X_END, X_FLAREA };
 enum { X_OK = 0, X_BADCRC, X_BADARG, X_REFUSED, X_FAILED, X_UNKNOWN };
 static u8 xin[3 + X_MAX + 4];
 static u32 xget(const u8 *p) { return p[0] | (p[1] << 8) | (p[2] << 16) | ((u32)p[3] << 24); }
@@ -552,6 +552,36 @@ static void cmd_opx(void) {
             exec_jump(0xBFC00000, 0, 0x801FFF00);
         case X_PROG: x_prog(a, n); x_send(cmd, X_OK, 0, 0); break;
         case X_END: x_send(cmd, X_OK, 0, 0); goto out;
+        case X_FLAREA: {                            // u32 offset, u32 length, u32 CRC32 of rombuf[0..length]
+            // a data area of bank 1 (saves, cheats, settings: tools/cheats.py), whole 16 KB sectors,
+            // never below FL_ROM_SIZE (OpenPsxRom's code; on a Datel cart its sectors 1-4 too)
+#ifdef ARCART
+            u32 lo = 0x18000;
+#else
+            u32 lo = FL_ROM_SIZE;
+#endif
+            if (a0 < lo || a0 % FLASH_SECT || !a1 || a1 % FLASH_SECT || a0 + a1 > FLASH_SIZE) {
+                x_text(cmd, X_REFUSED, "only whole sectors of the data area");
+                break;
+            }
+            if (crc32(ROM_BUF, a1) != a2) { x_text(cmd, X_FAILED, "rombuf CRC differs"); break; }
+            // only on a cartridge running OpenPsxRom: its data area is another firmware's code
+            // elsewhere (Xplorer, Unirom...)
+            extern int is_openrom_image(const u8 *img);
+#ifdef ARCART
+            const u8 *me = (const u8 *)FLASH_BASE + 0x5200;
+#else
+            const u8 *me = (const u8 *)FLASH_BASE;
+#endif
+            if (!is_openrom_image(me)) { x_text(cmd, X_REFUSED, "no OpenPsxRom on this cartridge"); break; }
+            flash_ui_begin("saving data", a0, a1);
+            int bad = flash_write_at(a0, ROM_BUF, a1, flash_ui);
+            extern void cheats_load(void);
+            cheats_load();                          // the menu and the next game see the new codes
+            status(bad ? "data area FAILED blocks:" : "data area written at", bad ? (u32)bad : a0, bad ? 0 : 1);
+            x_send(cmd, bad ? X_FAILED : X_OK, &bad, 4);
+            break;
+        }
         default: x_send(cmd, X_UNKNOWN, 0, 0); break;
         }
     }
@@ -559,6 +589,8 @@ out:
     if (cur_div != 18) set_baud_now(18);
     status("psx.py link closed", -1, -1);
 }
+
+static void unsp(void) { sio_puts("UNSP"); status("command not supported yet", -1, -1); }
 
 static u32 idle_frames;
 void sio_poll(void) {
@@ -574,7 +606,8 @@ void sio_poll(void) {
         case TOK('S','E','X','E'): cmd_sexe(); break;
         case TOK('S','R','O','M'): cmd_srom(); break;
         case TOK('D','U','M','P'): cmd_dump(); break;
-        case TOK('S','H','O','T'): cmd_shot(); break;
+        // left out of the build (make menuconfig): answered UNSP, the code is not linked
+        case TOK('S','H','O','T'): if (CONFIG_SHOT) cmd_shot(); else unsp(); break;
         case TOK('H','E','X','D'): cmd_hexd(); break;
         case TOK('J','U','M','P'): cmd_jump(0); break;
         case TOK('C','A','L','L'): cmd_jump(1); break;
@@ -584,9 +617,9 @@ void sio_poll(void) {
         case TOK('M','E','D','I'): set_baud(5); status("serial 414720", -1, -1); window = 0; continue;
         case TOK('F','A','S','T'): set_baud(4); status("serial 518400", -1, -1); window = 0; continue;
         case TOK('B','A','U','D'): cmd_baud(); window = 0; continue;
-        case TOK('M','C','U','P'): cmd_mcup(); break;
-        case TOK('O','P','X','1'): cmd_opx(); break;
-        case TOK('M','C','D','N'): cmd_mcdn(); break;
+        case TOK('M','C','U','P'): if (CONFIG_MCARD_SERIAL) cmd_mcup(); else unsp(); break;
+        case TOK('O','P','X','1'): if (CONFIG_OPX_LINK) cmd_opx(); else unsp(); break;
+        case TOK('M','C','D','N'): if (CONFIG_MCARD_SERIAL) cmd_mcdn(); else unsp(); break;
         case TOK('D','E','B','G'): {
             extern void core_debug(void);
             accept("OKAY");

@@ -55,10 +55,38 @@ when leaving the screen. The menu itself is displayed in PAL or NTSC from the BI
 Cheats
 ------
 
+.. image:: cheats.png
+   :width: 480
+
 GameShark codes (address + value), each one on/off, stored in the flash. The resident core applies
 the enabled codes on every interrupt while the game runs. Supported code types: 80 (16-bit write),
 30 (8-bit write), 10/11/20/21 (increment/decrement), D0-D3/E0-E3 (conditions on the next code), 50
 (serial repeater).
+
+.. _cheat-database:
+
+Codes from a cheat database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``tools/cheats.py`` picks codes on the PC from a database in DuckStation's format (its
+``resources/cheats.zip``, a folder of ``SERIAL.cht`` files, or one ``.cht``) and writes them to the
+cartridge over the serial port; the Cheats list shows them at once:
+
+.. code-block:: sh
+
+   python tools/cheats.py --db cheats.zip search "crash bandicoot"
+   python tools/cheats.py --db cheats.zip list SCES-00344        # numbered cheats
+   python tools/cheats.py --db cheats.zip send SCES-00344 1 3 4  # or: all; --append, --off
+   python tools/cheats.py show                                   # what the cartridge holds
+   python tools/cheats.py clear
+
+The cartridge keeps the game's title and one list of up to 96 code lines, grouped by cheat with
+its name (31 characters); the Cheats screen shows one line per cheat (cross turns all its code
+lines on or off) and, at the bottom, the codes of the selected one. The core applies the enabled
+codes whatever the game: send the codes of the game about to be played. A whole database does not fit in a cartridge
+(DuckStation's: about 4100 games, 1.7 MB in a compact form, 400-560 KB compressed), hence the
+choice on the PC. Codes that need a value chosen (``00??``) or use a type the core does not handle
+(``C0``/``C2``, ``00``...) are listed but not sent. ``PSX_CHEATDB`` can hold the database path.
 
 In-game menu
 ------------
@@ -89,7 +117,12 @@ Memory cards
    Two panes: the memory card (left) and the saves kept in the cartridge (right), with animated
    icons; copy, delete, free blocks. Writes are verified frame by frame.
 Controller test
-   Buttons and analog sticks of both pads (digital pad, DualShock, mouse...).
+   Buttons and analog sticks of both pads (digital pad, DualShock, mouse...), and the raw bytes
+   the pad answered.
+
+   .. image:: controller-test.png
+      :width: 480
+
 Hex editor
    RAM and cartridge viewer.
 Cartridge info
@@ -100,3 +133,6 @@ Cartridge banks
 
 .. image:: cartridge.png
    :width: 480
+
+Every entry of the main menu but *Boot CD*, *Boot options*, *Tools* and *About*, and every tool, can
+be left out of a custom build (:ref:`custom-builds`).
