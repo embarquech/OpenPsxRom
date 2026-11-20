@@ -226,7 +226,28 @@ def cmd_flash(link, path, full):
         raise LinkError('the image in the console RAM differs: nothing written')
     whole = link.crcs(rombuf, BANK, 1)[0]
     print('sent %d KB in %.1f s, flashing...' % (sent >> 10, time.time() - t0))
-    st, data = link.req(FLASH, struct.pack('<I', whole), timeout=120, tries=1)
+    # A damaged FLASH request is answered FFh and not run: send it again. Once it runs, the session
+    # ends on the flash screen: if its answer is lost, a new session tells what is in the flash.
+    req = link.frame(FLASH, struct.pack('<I', whole))
+    for _ in range(10):
+        link.s.reset_input_buffer()
+        link.s.write(req)
+        a = link.answer(120)
+        if a is None or a[0] != 0xFF:
+            break
+        time.sleep(0.05)
+    if a is None or a[0] != FLASH:
+        link.s.close()
+        time.sleep(0.5)
+        check = Link(link.port)
+        now = check.crcs(FLASH_BASE + off, PIECE, n)
+        check.close()
+        bad = sum(now[k] != zlib.crc32(img[k * PIECE:(k + 1) * PIECE]) for k in range(n))
+        if bad:
+            raise LinkError('no answer to FLASH, and %d piece(s) of 1 KB still differ' % bad)
+        print('FLASH OK  (bank %d, answer lost, flash read back identical)' % bank)
+        return
+    st, data = a[1], a[2]
     if st == 0:
         print('FLASH OK  (bank %d, CRC32 %08X)' % (bank, whole))
     elif len(data) == 8 and st == 4:
