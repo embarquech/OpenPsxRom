@@ -67,8 +67,13 @@ int flash_write(const u8 *img, u32 size, void (*progress)(u32 sector, const char
 int flash_write_at(u32 off, const u8 *img, u32 size, void (*progress)(u32 sector, const char *what));
 // flash layout: ROM 0-64 KB, compressed memory card backup 64-112 KB, cheat list 112-128 KB
 #define FL_ROM_SIZE   0x10000u
+#ifdef ARCART        // Datel cart, sectors 0 and 5 locked: OpenPsxRom in sectors 1-4, one card save in 6
+#define FL_CARD_OFF   0x18000u
+#define FL_CARD_SIZE  0x4000u
+#else
 #define FL_CARD_OFF   0x10000u
 #define FL_CARD_SIZE  0xC000u
+#endif
 #define FL_CHEAT_OFF  0x1C000u
 #define FL_CFG_OFF    0x1FF80u   // last 128 bytes of the cheat area: 'OCF1' + flags (read by preboot)
 #define CFG_MAGIC     0x3146434Fu
@@ -138,7 +143,7 @@ void exe_start(const u8 *hdr) __attribute__((noreturn));
 void ui_progress(const char *what, u32 done, u32 total);
 void flash_ui_begin(const char *title, u32 off, u32 size);
 void flash_ui(u32 s, const char *what);
-void ui_flash_result(int ok, const char *l1, const char *l2);
+void ui_flash_result(const char *result);
 int ui_ask(const char *title, const char *l1, const char *l2, const char *question);
 void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info);
 
@@ -150,6 +155,7 @@ char *fmt_hex(char *p, u32 v, int digits);
 char *fmt_dec(char *p, u32 v);
 char *fmt_str(char *p, const char *s);
 u32 crc32(const void *p, u32 n);
+u32 crc32_upd(u32 crc, const void *p, u32 n);   // zlib-style running CRC32
 
 // crt.s
 void bios_return(void) __attribute__((noreturn));

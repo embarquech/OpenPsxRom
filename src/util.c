@@ -28,7 +28,8 @@ char *fmt_dec(char *p, u32 v) {
 char *fmt_str(char *p, const char *s) { while (*s) *p++ = *s++; *p = 0; return p; }
 
 static u32 crc_tab[256];
-u32 crc32(const void *data, u32 n) {
+// zlib's crc32(): crc32_upd(0, a) then crc32_upd(that, b) = crc32 of a and b one after the other
+u32 crc32_upd(u32 crc, const void *data, u32 n) {
     if (!crc_tab[1])
         for (u32 i = 0; i < 256; i++) {
             u32 c = i;
@@ -36,7 +37,8 @@ u32 crc32(const void *data, u32 n) {
             crc_tab[i] = c;
         }
     const volatile u8 *p = data;
-    u32 c = 0xFFFFFFFFu;
+    u32 c = ~crc;
     while (n--) c = crc_tab[(c ^ *p++) & 0xFF] ^ (c >> 8);
     return ~c;
 }
+u32 crc32(const void *data, u32 n) { return crc32_upd(0, data, n); }

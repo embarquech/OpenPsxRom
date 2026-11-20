@@ -45,7 +45,9 @@ static void frame_begin(const char *title) {
     gfx_rect(0, 210, 320, 1, 0x604020);
     char s[64], *p = s;
     p = fmt_str(p, "Serial: ");
-    fmt_str(p, sio_status[0] ? sio_status : "waiting for NOPS (115200)");
+    const char *st = sio_status[0] ? sio_status : "waiting for NOPS (115200)";
+    for (int i = 0; st[i] && p < s + sizeof s - 1; i++) *p++ = st[i];     // bounded copy
+    *p = 0;
     gfx_text(10, 228, C_DIM, s);
     cur_help = 0;
 }
@@ -63,18 +65,24 @@ static void frame_end(void) {
 static void help(const char *s) { cur_help = s; }
 
 // Progress screen for long operations (card, CD, serial uploads): one frame per call, with up to
-// 4 optional lines of details under the bar.
+// 4 optional lines of details under the bar, and a 5th one: a result line (green if "FLASH OK").
 void ui_progress(const char *what, u32 done, u32 total) { ui_progress_info(what, done, total, 0); }
-void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info) {
+static void ui_progress_draw(const char *what, u32 done, u32 total, const char *const *info) {
     frame_begin(what);
     char s[48], *p = fmt_str(s, what);
     p = fmt_str(p, "... ");
     fmt_dec(p, total ? done * 100 / total : 0);
     fmt_str(s + strlen(s), "%");
-    gfx_text(40, 100, C_TEXT, s);
-    gfx_rect(40, 116, 240, 10, 0x404040);
-    if (total) gfx_rect(40, 116, 240 * done / total, 10, 0x40C040);
-    for (int i = 0; info && i < 4; i++) if (info[i]) gfx_text(40, 136 + i * 14, i > 1 ? C_DIM : C_TEXT, info[i]);
+    // the whole block (title line to result line) centred in the panel (y 38-206)
+    gfx_text(40, 70, C_TEXT, s);
+    gfx_rect(40, 86, 240, 10, 0x404040);
+    if (total) gfx_rect(40, 86, 240 * done / total, 10, 0x40C040);
+    for (int i = 0; info && i < 4; i++) if (info[i]) gfx_text(40, 106 + i * 14, i > 1 ? C_DIM : C_TEXT, info[i]);
+    if (info && info[4])                                // result line (flash: FLASH OK / FAILED)
+        gfx_text(40, 166, info[4][6] == 'O' ? C_OK : C_ERR, info[4]);
+}
+void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info) {
+    ui_progress_draw(what, done, total, info);
     gfx_flip();
 }
 
@@ -115,16 +123,6 @@ static void message(const char *title, const char *l1, const char *l2, u32 col) 
 // is not polled meanwhile (frame_end would start another command from inside this one).
 // End of a flash write: big "FLASH OK" (green) or "FLASH FAILED" (red) for ~3 s, then back to
 // the menu (nothing to answer; the serial port is not polled meanwhile, as during the write).
-void ui_flash_result(int ok, const char *l1, const char *l2) {
-    for (int f = 0; f < 150; f++) {
-        frame_begin(ok ? "flash done" : "flash FAILED");
-        gfx_text2(160 - gfx_text_w(ok ? "FLASH OK" : "FLASH FAILED"), 80, ok ? 0x40E040 : 0x4040FF,
-                  ok ? "FLASH OK" : "FLASH FAILED");
-        if (l1) gfx_text(160 - gfx_text_w(l1) / 2, 124, C_TEXT, l1);
-        if (l2) gfx_text(160 - gfx_text_w(l2) / 2, 140, C_DIM, l2);
-        gfx_flip();
-    }
-}
 int ui_ask(const char *title, const char *l1, const char *l2, const char *question) {
     pad_now = pad_old = pad_read();                     // buttons already held do not count
     for (;;) {
@@ -284,6 +282,7 @@ u32 omc_packed_size(const u8 *src);
 // block n / count with its step, blocks unchanged / written / failed, bank and address.
 // The callback gets the 16 KB block in the low byte and the page offset (page chips) above.
 static struct { char title[40], chip[32]; u32 off, first, count, same, written, failed; } fu;
+static char l0[40], l1[40], l2[40], l3[40];         // flash screen details, kept for the result
 void flash_ui_begin(const char *title, u32 off, u32 size) {
     u8 m = 0xFF, d = 0xFF;
     if (off >= ROM3_OFF) { m = 0xBF; d = 0x10; flash_identify(&m, &d); }   // chip 2: same type, not probed
@@ -312,7 +311,6 @@ void flash_ui(u32 s, const char *what) {
     if (what[0] == 's') fu.same++;
     else if (what[0] == 'o') fu.written++;
     else if (what[0] == 'F') fu.failed++;
-    static char l0[40], l1[40], l2[40], l3[40];
     fmt_str(l0, fu.chip);
     char *p = fmt_str(l1, "block ");
     p = fmt_dec(p, blk + 1);
@@ -334,8 +332,28 @@ void flash_ui(u32 s, const char *what) {
     p = fmt_str(p, ", ");
     p = fmt_dec(p, fu.count * 16);
     fmt_str(p, " KB");
-    const char *info[4] = {l0, l1, l2, l3};
+    // last block done: the result under the details, as the bar reaches its end
+    const char *res = (end && blk + 1 == fu.count) ? (fu.failed ? "FLASH FAILED" : "FLASH OK") : 0;
+    const char *info[5] = {l0, l1, l2, l3, res};
     ui_progress_info(fu.title, blk * FLASH_SECT + (end ? FLASH_SECT : page), fu.count * FLASH_SECT, info);
+}
+// End of a flash: the flash screen stays (bar, details, result line) until a button is pressed;
+// meanwhile the serial port is served as in the menu, so another /rom can start right away; other
+// commands (/ping...) leave it there. A flash started from this screen ends on it again: the new
+// result replaces the shown one (no nesting), and only a button goes back to the menu.
+void ui_flash_result(const char *result) {
+    static const char *shown;
+    if (shown) { shown = result; return; }              // called from the serial poll below
+    shown = result;
+    pad_now = pad_old = pad_read();                     // buttons already held do not count
+    for (;;) {
+        const char *info[5] = {l0, l1, l2, l3, shown};
+        ui_progress_draw(fu.title, 1, 1, info);
+        help("any button: back to the menu   (serial ready)");
+        frame_end();
+        if (pad_now & ~pad_old) break;
+    }
+    shown = 0;
 }
 static int flash_area(u32 off, const u8 *data, u32 size) {
     flash_ui_begin("saving to", off, size);
@@ -550,7 +568,9 @@ int rom_image_bank(const u8 *img) {
 int chip2_present(void) {
     u8 m, d;
     flash_identify(&m, &d);
-    if (flash_chip_kb(m, d) >= 512) return 0;            // one big chip: 40000h is the same chip
+    // only behind a 256 KB first chip (Xplorer FX): a 512 KB chip covers 40000h itself, and a
+    // 128 KB chip (Datel Am29F010) reads FFh or open bus there, which is no chip at all
+    if (flash_chip_kb(m, d) != 256) return 0;
     const volatile u8 *a = (const volatile u8 *)FLASH_BASE, *b = a + ROM3_OFF;
     for (u32 i = 0; i < 0x1000; i++) if (a[i] != b[i]) return 1;
     return 0;
@@ -639,8 +659,12 @@ static void screen_cd(void) {
                 } else if (is_rom(sel)) {
                     flash_from_cd(sel, err);
                 } else if (has_ext(sel, ".STR")) {
+#ifdef ARCART           // no room on the Datel cart (sectors 1-4 only): no video player there
+                    fmt_str(err, "no video player in this build");
+#else
                     str_play(cde[sel].lba, cde[sel].size, err);
                     pad_now = pad_old = pad_read();
+#endif
                 } else if (cd_color(sel) == C_OK) {
                     frame_begin("CD browser");
                     gfx_text(24, 100, C_TEXT, "loading...");
@@ -1457,14 +1481,24 @@ int main(void) {
         {   // emulator check of the progress screens (no serial / flash write in the emulator)
             static int t;
             if (++t == 30) {
-                if (UITEST == 5) { ui_flash_result(1, "bank 2: written and verified", "CRC32 1234ABCD"); ui_flash_result(0, "bank 1: some blocks are wrong", "2 block(s) failed: flash again, no reset"); }
+                if (UITEST == 6) {           // a real flash of the bank 1 image onto itself, then the result
+                    u8 *buf = (u8 *)0x80100000;
+                    memcpy(buf, (const void *)FLASH_BASE, FLASH_SIZE);
+                    buf[0xFFF0] ^= 1;            // one byte changed: one block really written
+                    flash_ui_begin("flashing", 0, FLASH_SIZE);
+                    int bad = flash_write(buf, FLASH_SIZE, flash_ui);
+                    sio_puts(bad ? "UITEST6 flash FAILED" : "UITEST6 flash ok");
+                    ui_flash_result(bad ? "FLASH FAILED: 1 block(s)" : "FLASH OK  CRC32 12345678");
+                    sio_puts("UITEST6 result shown");
+                }
+                else if (UITEST == 5) ui_flash_result("FLASH OK  CRC32 1234ABCD");
                 else if (UITEST == 4) screen_banks();
                 else if (UITEST == 3) ui_ask("flash done", "OpenPsxRom written and verified", "CRC 29291983", "Restart on the new version now?");
                 else if (UITEST == 1) {
                     flash_ui_begin("flashing", ROM2_OFF, FLASH_SIZE);
-                    flash_ui(8, "same"); flash_ui(9, "ok"); flash_ui(10, "write"); flash_ui(10 | (0x2000 << 8), "page");
+                    flash_ui(8, "same"); flash_ui(9, "ok"); flash_ui(10, "write"); flash_ui(10 | (0x2000 << 8), "page"); flash_ui(15, "ok");
                 } else {
-                    static const char *const info[4] = {"84 KB / 202 KB", "11.2 KB/s, 10 s left",
+                    static const char *const info[5] = {"84 KB / 202 KB", "11.2 KB/s, 10 s left",
                         "load 80010000  entry 80010000", "Sony Computer Entertainment Inc"};
                     ui_progress_info("loading the program", 84 * 1024, 202 * 1024, info);
                 }

@@ -112,6 +112,10 @@ preboot:
     b       1f                  # the bank 3 build was chosen by the switch already: start here
     nop
 .endif
+.ifdef ARCART
+    b       1f                  # Datel cart build: called by the hooks (no switch, no other bank)
+    nop
+.endif
     # Xplorer switch (1F060000h bit 0, 1 = on): on -> OpenROM. Off -> what the menu chose (settings
     # word 'OCF1' at 1F01FF80h, bit 0 of the next word): bypass (normal boot, the default) or ROM 2,
     # the second firmware in the upper 128 KB (Unirom on Xplorers): its own pre-boot entry, entered

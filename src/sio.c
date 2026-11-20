@@ -7,7 +7,7 @@
 #define SIO_CTRL REG16(0x1F80105A)
 #define SIO_BAUD REG16(0x1F80105E)
 
-char sio_status[48];
+char sio_status[48];                // always NUL-terminated within its 48 bytes (see status())
 
 void sio_init(u32 div) {
     SIO_CTRL = 0x40;            // reset

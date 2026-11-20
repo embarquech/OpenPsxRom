@@ -26,7 +26,8 @@ Cartridges
      - Not tested. Unknown chips are reported with their ID in the boot log.
    * - Datel (Action Replay / PS Hacker)
      - AMD Am29F010 (128 KB)
-     - One bank. Some sectors may be hardware-protected (12 V needed to unprotect).
+     - One bank. Some sectors may be hardware-protected (12 V needed to unprotect); with sectors
+       0 and 5 locked, see below.
 
 Known flash chips: AMD Am29F010, ST M29F010B, Fujitsu MBM29F010, SST 39SF010A/020A/040,
 SST 29EE010/29EE020/29LE020, Atmel AT29C010A/020/040A, Winbond W29EE011.
@@ -82,3 +83,26 @@ Serial cable
 SIO1, 115200 bauds 8N1, 3.3 V levels. PS1 serial port pins: 1 RXD (to the adapter's TX), 4 TXD
 (to the adapter's RX), 5 CTS (the PS1 only transmits when the PC raises RTS), 7 GND. Pin 2 is
 +3.5 V: do not connect it to the adapter.
+
+Datel cart with locked sectors
+------------------------------
+
+Some Datel carts ("PS Hacker (Version 1999)", Am29F010) have sectors 0 and 5 hardware-protected:
+the BIOS entries and Datel's boot code in sector 0 cannot be replaced. ``make arcart`` builds a
+special OpenPsxRom for them from a dump of the cart:
+
+.. code-block:: sh
+
+   nops /dump 0x1F000000 0x20000 backup/ar_cart_128k.bin /dest COMx
+   make arcart DUMP=backup/ar_cart_128k.bin          # -> build/openrom_arcart.rom
+   python tools/psx.py flash build/openrom_arcart.rom
+
+OpenPsxRom is linked at 1F005200h, in the writable sectors 1-4. Two small hooks
+(``src/arcart_hooks.s``) sit where Datel's locked code first calls into a writable sector, at
+pre-boot (1F004BCCh) and mid-boot (1F0051E0h): they install OpenPsxRom's hook and return straight
+to the BIOS, after restoring what Datel's code changed on the way. ``tools/arcart_image.py`` checks
+that the dump is that firmware, keeps the locked sectors byte for byte (a flash skips them as
+unchanged) and Datel's settings word at 13F80h. Sector 6 holds one memory card save; this build
+has no ``.STR`` video player (no room left in sectors 1-4). The Cartridge banks screen only shows
+bank 1: a 128 KB chip has no bank 2, and nothing answers at 1F040000h.
+

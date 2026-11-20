@@ -42,6 +42,8 @@ typedef struct {
 // OpenPsxRom started by the switch OFF + "bank 3" boot option, for tests)
 #ifdef BANK3
 #define ROM_HDR 0x1F040000u
+#elif defined(ARCART)
+#define ROM_HDR 0x1F005200u   // Datel cart with locked sectors 0 and 5: entered through hooks
 #else
 #define ROM_HDR 0x1F000000u
 #endif

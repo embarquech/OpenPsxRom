@@ -29,7 +29,8 @@ static int buf;                 // buffer being drawn (0/1); the other one is di
 int gfx_pal;
 
 // wait for 'ready for a command word' before a command, parameters follow directly (FIFO)
-static void gp0(u32 w) { while (!(GPUSTAT & (1u << 26))); GP0 = w; }
+// bounded: a GPU that never says "ready" must not freeze the menu (seen once after a flash)
+static void gp0(u32 w) { for (u32 t = 0; t < 2000000 && !(GPUSTAT & (1u << 26)); t++); GP0 = w; }
 #define gp0p(w) (GP0 = (w))
 
 // PAL if the BIOS version string ends with 'E' ("System ROM Version 4.1 12/16/97 E").
@@ -175,12 +176,12 @@ int gfx_text2(int x, int y, u32 rgb, const char *s) {
 
 static void wait_vblank(void) {
     I_STAT = ~1u;
-    while (!(I_STAT & 1));
+    for (u32 t = 0; t < 4000000 && !(I_STAT & 1); t++);
     I_STAT = ~1u;
 }
 
 void gfx_flip(void) {
-    while (!(GPUSTAT & (1u << 26)));
+    for (u32 t = 0; t < 2000000 && !(GPUSTAT & (1u << 26)); t++);
     wait_vblank();
     GP1 = 0x05000000 | ((buf * 256) << 10);
     buf ^= 1;

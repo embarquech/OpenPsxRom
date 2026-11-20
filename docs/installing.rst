@@ -29,8 +29,17 @@ From a running OpenPsxRom or Unirom (Unirom must not be in debug mode):
 
    nops /rom build/openrom.rom /dest COMx
 
-The image is checked (Sony header, checksum), written page by page and verified. Keep a dump of
-your original firmware first:
+or with OpenPsxRom's own client, which only sends the parts that changed (see :doc:`protocol`):
+
+.. code-block:: sh
+
+   python tools/psx.py flash build/openrom.rom
+
+The image is checked (Sony header, checksum), written page by page and verified. The flash screen
+then stays on, with the bar, the blocks unchanged / written / failed and a ``FLASH OK`` (or
+``FLASH FAILED``) line, until a button is pressed: meanwhile the serial port is still served, so
+another flash can follow straight away (the new result replaces the shown one), and a ``/ping`` or
+any other command leaves the screen as it is. Keep a dump of your original firmware first:
 
 .. code-block:: sh
 

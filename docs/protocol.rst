@@ -108,3 +108,109 @@ PCDRV
 
 While ``nops /m`` runs, a program's PCDRV ``break`` sends ``00 'p'`` + the function code (u32);
 the PC answers ``OKAY`` then the exchange of that function (file name, handle, length, data).
+
+OPX1 extended link (``tools/psx.py``)
+-------------------------------------
+
+OpenPsxRom's own client, next to ``nops`` (everything above is unchanged: ``nops`` never sends
+``OPX1``). The PC sends the token ``OPX1`` at 115200 baud; the console answers ``OPXA`` and both
+then exchange *frames*, until ``END``, a flash, an EXE start, a reset or about 3 s of silence:
+
+.. code-block:: none
+
+   A5h, cmd (u8), len (u16), payload[len], CRC32 (u32, zlib) of cmd..payload     little-endian
+
+Each request gets exactly one answer frame with the same ``cmd``; its payload is a status byte
+(0 ok, 1 damaged frame, 2 bad arguments, 3 refused, 4 failed, 5 unknown command) followed by the
+data. The PC sends the next request only once it has the answer. A frame damaged on the way to the
+console is answered with ``cmd`` FFh, status 1; one damaged on the way back fails its CRC: in both
+cases the PC simply sends the request again (every request can be repeated safely). A PC that lost
+the session can send ``OPX1`` again inside it: the console answers ``OPXA`` and goes on.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 6 10 42 42
+
+   * - cmd
+     - Name
+     - Request payload
+     - Answer data
+   * - 0
+     - ``PING``
+     -
+     -
+   * - 1
+     - ``INFO``
+     -
+     - text, one ``key=value`` per line: version, build (bank1 / bank3 / arcart), flash chip and
+       ID, size, banks 2 and 3 available, ``rombuf`` (ROM buffer, 80100000h), ``romram`` (RAM used
+       by OpenPsxRom, never writable), ``openrom_size``, ``max`` (largest data payload), ``div``
+   * - 2
+     - ``BAUD``
+     - divisor (u32) of 2073600, as ``/psxbaud``
+     - answered at the old speed, then the port is reset at the new one; no valid frame within
+       ~1 s: back to 115200
+   * - 3
+     - ``READ``
+     - address, length (up to 4 KB)
+     - the bytes (any address: RAM, flash, scratchpad)
+   * - 4
+     - ``WRITE``
+     - address, data
+     - main RAM or scratchpad only, never OpenPsxRom's own RAM
+   * - 5
+     - ``LZWR``
+     - address, OMC1 stream (:doc:`formats`, ``tools/omc.py``)
+     - unpacked at the address, CRC of the unpacked data checked
+   * - 6
+     - ``CRCS``
+     - address, step, count (up to 512)
+     - ``count`` CRC32s of ``step`` bytes each
+   * - 7
+     - ``COPY``
+     - destination, source, length
+     - e.g. a flash bank to ``rombuf``
+   * - 8
+     - ``FLASH``
+     - CRC32 of the 128 KB in ``rombuf``
+     - written as ``SROM`` would (bank from the image's entry, OpenPsxRom's saves kept); answer:
+       failed blocks (u32), bank (u32), or the reason of a refusal. The session ends on the flash
+       screen
+   * - 9
+     - ``EXEC``
+     - the 2048-byte PS-X EXE header (data loaded before)
+     - answered, then the EXE starts
+   * - 10
+     - ``RESET``
+     -
+     - answered, then jump to the BIOS reset vector
+   * - 11
+     - ``PROG``
+     - done, total (u32), then title and up to 4 lines, NUL-separated
+     - the console draws that progress screen (the PC drives the bar)
+   * - 12
+     - ``END``
+     -
+     - session closed, back to the menu's serial poll
+
+``psx.py`` uses them as follows:
+
+* ``flash FILE`` (*differential flash*): ``CRCS`` of the cartridge bank in 1 KB pieces, compared
+  with the file; ``COPY`` of the bank to ``rombuf``; only the pieces that differ are sent
+  (``LZWR`` when compressing makes them smaller, else ``WRITE``); ``CRCS`` of ``rombuf`` against
+  the file; then ``FLASH``. An image already on the cartridge is not written again. ``--full``
+  sends every piece.
+* ``exe FILE`` / ``load FILE ADDR``: the data in compressed 1 KB pieces, then ``EXEC`` for an EXE.
+* ``dump ADDR LEN FILE`` / ``peek ADDR [LEN]``: ``READ`` in 1 KB pieces.
+* ``info``, ``ping``, ``reset``.
+
+.. code-block:: sh
+
+   python tools/psx.py flash build/openrom.rom          # port from tools/comport.txt, or -p COMx
+   python tools/psx.py dump 0x1F000000 0x20000 bank1.bin
+
+The link stays at 115200 baud. The PS1 cannot hit the PC's rates exactly (33.8688 MHz / 16 / 18 =
+117600 baud, 2 % fast), and with a fixed-rate adapter (CP210x) some bytes arrive wrong, mostly in
+data with many 0/1 transitions: the 1 KB pieces and their resend keep that cheap (about 9 KB/s).
+``--fast`` asks for divisor 4 (PC at 510000, as ``nops /fast``); it only helps with an adapter that
+can follow the console's real rates (FTDI, CP2102N). Set ``PSX_DEBUG=1`` to see every resend.

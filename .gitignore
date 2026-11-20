@@ -10,6 +10,7 @@
 !/exe.ld
 !/exe_lo.ld
 !/rom_bank3.ld
+!/rom_ar.ld
 !/src/
 !/core/
 !/test/
@@ -29,6 +30,8 @@
 !/tools/rom2_test.ps1
 !/tools/psxshot.py
 !/tools/caetla_reloc.py
+!/tools/arcart_image.py
+!/tools/psx.py
 
 __pycache__/
 *.o

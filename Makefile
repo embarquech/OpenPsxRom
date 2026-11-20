@@ -11,6 +11,17 @@ SRC := src/header.s src/crt.s src/main.c src/gfx.c src/pad.c src/sio.c src/proto
 OBJ := $(patsubst src/%,build/%.o,$(SRC)) build/core_blob.o
 
 all: build/openrom.rom
+# Datel cart with locked sectors 0 and 5 ("PS Hacker (Version 1999)"): OpenPsxRom at 1F005200h,
+# entered through two hooks; DUMP = a /dump of that cart (128 KB) -> build/openrom_arcart.rom
+DUMP ?= backup/ar_cart_128k.bin
+arcart:
+	$(MAKE) -B LDS=rom_ar.ld DEFS="$(DEFS) -DARCART -Wa,--defsym,ARCART=1" build/openrom.rom
+	cp build/openrom.rom build/openrom_ar.rom
+	cp build/openrom.elf build/openrom_ar.elf
+	$(CC) $(CFLAGS) -T src/arcart_hooks.ld -Wl,--defsym,ARPRE=0x$$($(TOOLS)nm build/openrom_ar.elf | awk '/ preboot$$/{print $$1}' | tail -c 9) -Wl,--defsym,OWNFLUSH=0x$$($(TOOLS)nm build/openrom_ar.elf | awk '/ own_flush$$/{print $$1}' | tail -c 9) src/arcart_hooks.s -o build/arcart_hooks.elf
+	python tools/arcart_image.py $(DUMP) build/openrom_ar.rom build/arcart_hooks.elf build/openrom_arcart.rom $(TOOLS)nm
+	$(MAKE) -B build/openrom.rom
+
 # bank 3 writer run from RAM (nops /exe): writes IMG (128 KB built for 1F040000h) to the Xplorer
 # FX's second chip, then reads it back; without IMG, a test pattern. -> build/flash3.exe
 IMG ?=
