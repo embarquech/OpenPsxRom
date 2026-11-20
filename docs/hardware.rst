@@ -65,7 +65,15 @@ At power-on the BIOS calls the cartridge's pre-boot entry. OpenPsxRom reads the 
   its bank; otherwise it falls back to bypass, so an empty or damaged bank never blocks the boot.
 
 A firmware is position-dependent: only images built for 1F020000h (or 1F040000h) can run from bank
-2 (or 3). Unirom's own installer always writes bank 1: use ``nops /rom`` with OpenPsxRom, which
+2 (or 3). Caetla only exists for bank 1: ``tools/caetla_reloc.py`` relocates it (0.34, 0.37, 0.38
+tested) to bank 2 or 3. It unpacks Caetla's compressed RAM modules to move their references too,
+and points its Action Replay port reads (which fall inside bank 2 on an Xplorer) at erased flash::
+
+   python tools/caetla_reloc.py caetla.bin 2 build/caetla_bank2.rom   # then nops /rom
+   python tools/caetla_reloc.py caetla.bin 3 build/caetla_bank3.rom   # then make flash3 IMG=...
+
+Do not save Caetla's settings from a relocated copy: its own flash routines address the chip as in
+bank 1 and would write over OpenPsxRom's settings page. Unirom's own installer always writes bank 1: use ``nops /rom`` with OpenPsxRom, which
 detects the target bank (see :doc:`installing`).
 
 Serial cable

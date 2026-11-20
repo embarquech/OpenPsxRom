@@ -28,6 +28,7 @@
 !/tools/boot_test.ps1
 !/tools/rom2_test.ps1
 !/tools/psxshot.py
+!/tools/caetla_reloc.py
 
 __pycache__/
 *.o
