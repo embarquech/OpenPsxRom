@@ -3,7 +3,7 @@
 #include "hw.h"
 #include "pad.h"
 
-#define OPENROM_VERSION "0.6"
+#define OPENROM_VERSION "0.7"
 
 // colours (0xBBGGRR, 0x80 = neutral for text)
 #define C_TEXT   0x808080
@@ -138,6 +138,7 @@ void exe_start(const u8 *hdr) __attribute__((noreturn));
 void ui_progress(const char *what, u32 done, u32 total);
 void flash_ui_begin(const char *title, u32 off, u32 size);
 void flash_ui(u32 s, const char *what);
+void ui_flash_result(int ok, const char *l1, const char *l2);
 int ui_ask(const char *title, const char *l1, const char *l2, const char *question);
 void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info);
 

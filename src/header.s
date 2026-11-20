@@ -8,15 +8,15 @@
 # When the breakpoint fires, the kernel is fully initialised: the payload is copied to RAM (so the
 # flash can be rewritten while it runs), the menu runs, and leaving it resumes the shell exactly
 # where it was stopped (registers and status restored, rfe).
-# [1F000000h] (mid-boot) gets the same pointer, as PS Hacker and Unirom do. (A firmware with two
-# different entries, like Caetla, would need [bank+00h] for mid-boot: tried, then reverted after
-# black screens at power-on on a real Xplorer FX; not understood yet.)
+# [1F000000h] (mid-boot) installs the same hook, as PS Hacker and Unirom do. When the switch selects
+# another bank, each BIOS call goes to that firmware's own entry: [bank+80h] for pre-boot,
+# [bank+00h] for mid-boot (Caetla has two different ones; Unirom the same pointer twice).
 
     .set noreorder
     .set noat
     .section .header, "ax"
 
-    .word   preboot
+    .word   midboot
 .ifdef BANK3
     # The bank 3 copy must never be started by the BIOS itself: the Xplorer FX can come up with
     # its second chip seen at 1F000000h (a state kept until the switch is set OFF), and the BIOS
@@ -102,7 +102,12 @@
     .equ    SAVE, 0x1F800300    # scratchpad: registers of the interrupted shell (nothing uses it yet)
     .equ    SHELL, 0x80030000
 
+midboot:
+    b       0f
+    li      $t5, 0x00           # mid-boot: another bank's firmware is entered at its word +00h
 preboot:
+    li      $t5, 0x80           # pre-boot: at its word +80h (Caetla has two different entries;
+0:                              # t5 is untouched until the jump below)
 .ifdef BANK3
     b       1f                  # the bank 3 build was chosen by the switch already: start here
     nop
@@ -144,7 +149,8 @@ preboot:
     lw      $t1, 0x84($t0)      # firmware header: "Lice"(nsed by Sony) at bank + 84h
     li      $t2, 0x6563694C
     bne     $t1, $t2, 2f
-    lw      $t1, 0x80($t0)      # its pre-boot entry, which must be inside that bank
+    addu    $t3, $t0, $t5
+    lw      $t1, 0($t3)         # its pre-boot / mid-boot entry, which must be inside that bank
     nop
     subu    $t2, $t1, $t0
     lui     $t3, 0x0002

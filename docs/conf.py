@@ -3,7 +3,7 @@
 project = 'OpenPsxRom'
 author = 'embarquech'
 copyright = '2026, embarquech (GPL-3.0-or-later)'
-release = '0.6'
+release = '0.7'
 
 extensions = []
 exclude_patterns = ['_build']

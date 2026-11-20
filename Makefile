@@ -11,6 +11,15 @@ SRC := src/header.s src/crt.s src/main.c src/gfx.c src/pad.c src/sio.c src/proto
 OBJ := $(patsubst src/%,build/%.o,$(SRC)) build/core_blob.o
 
 all: build/openrom.rom
+# bank 3 writer run from RAM (nops /exe): writes IMG (128 KB built for 1F040000h) to the Xplorer
+# FX's second chip, then reads it back; without IMG, a test pattern. -> build/flash3.exe
+IMG ?=
+flash3:
+	@mkdir -p build/flash3
+	$(if $(IMG),cp $(IMG) build/flash3/image.bin && cd build/flash3 && $(BOBJCOPY) -I binary -O elf32-littlemips -B mips image.bin image.o)
+	$(CC) $(CFLAGS) $(if $(IMG),-DIMAGE) -O2 -T test/flash3.ld test/flash3_crt.s test/flashtest3.c $(if $(IMG),build/flash3/image.o) -o build/flash3/flash3.elf -lgcc
+	$(OBJCOPY) -O binary build/flash3/flash3.elf build/flash3/flash3.bin
+	python tools/elf2exe.py build/flash3/flash3.bin build/flash3.exe 0x80010000 0x80010000
 # a second OpenPsxRom for bank 3 (1F040000h), "bank 3" shown in the title bar: build/openrom_bank3.rom
 bank3:
 	$(MAKE) -B LDS=rom_bank3.ld DEFS="$(DEFS) -DBANK3 -Wa,--defsym,BANK3=1" build/openrom.rom

@@ -491,7 +491,17 @@ static char *cat(char *o, const char *s) { while (*s) *o++ = *s++; *o = 0; retur
 #define PAD_INIT_OLD 0xFFFF
 static u16 pad_hits(u16 *old) {
     vsync();
-    u16 now = pad_read(), hit = now & ~*old;
+    // debounced: a press counts at once, a release only after 3 reads in a row without the button
+    // (a contact bounce or a failed read used to give on/off/on for one push on a cheat)
+    u16 raw = pad_read();
+    u32 held = SH->pad_held;
+    for (int i = 0; i < 16; i++) {
+        u32 m = 1u << i;
+        if (raw & m) { held |= m; SH->pad_off[i] = 0; }
+        else if ((held & m) && ++SH->pad_off[i] >= 3) held &= ~m;
+    }
+    SH->pad_held = held;
+    u16 now = (u16)held, hit = now & ~*old;
     *old = now;
     return hit;
 }

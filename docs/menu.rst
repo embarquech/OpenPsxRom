@@ -16,6 +16,12 @@ Boot CD
 Unlock drive + boot CD
    Unlocks the drive for burned discs (no modchip), then boots.
 
+Restart
+   Restarts the console, as the reset button.
+
+Buttons are debounced (a release counts after 3 frames without the button), so a contact bounce
+or a failed pad read no longer gives a second press.
+
 Boot options
 ------------
 
@@ -88,6 +94,9 @@ Hex editor
    RAM and cartridge viewer.
 Cartridge info
    Flash chip(s), IDs, protection, ROM CRC.
+Cartridge banks
+   What each bank holds (OpenPsxRom, Unirom, Caetla, Xplorer... or the header text, or empty), its
+   CRC, which one the switch starts, and the switch-off setting.
 
 .. image:: cartridge.png
    :width: 480

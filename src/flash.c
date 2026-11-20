@@ -164,12 +164,30 @@ static int program_byte(u32 a, u8 v) {
     return 1;
 }
 
+// Nothing may slow a page load down: wait (bounded) until no DMA runs (the progress screen just
+// drawn leaves a GPU list transferring, which held the bus and cut page loads after 32 bytes on
+// the Xplorer FX's second chip), and keep interrupts off during the load.
+static void dma_idle(void) {
+    for (u32 ch = 0; ch < 7; ch++)
+        for (u32 t = 0; t < 2000000 && (REG32(0x1F801088 + ch * 0x10) & 0x01000000); t++);
+}
+static u32 irq_off(void) {
+    u32 sr;
+    __asm__ volatile("mfc0 %0, $12; nop" : "=r"(sr));
+    __asm__ volatile("mtc0 %0, $12; nop; nop" ::"r"(sr & ~1u));
+    return sr;
+}
+static void irq_restore(u32 sr) { __asm__ volatile("mtc0 %0, $12; nop; nop" ::"r"(sr)); }
+
 // Atmel/SST/Winbond page chips: one page loaded after the unlock (bytes < 150 us apart), then
 // programmed internally (~10 ms); no erase.
 static int program_page(u32 a, const u8 *p, int n) {
     for (int k = 0; k < 3; k++) {
+        dma_idle();
+        u32 sr = irq_off();
         cmd(0xA0);
         for (int i = 0; i < n; i++) F(a + i) = p[i];
+        irq_restore(sr);
         pause(2000);                                   // > 150 us: end of the page load
         poll(a + n - 1, p[n - 1], 2000000u);           // DATA polling until programmed (~5-10 ms)
         pause(200);

@@ -202,13 +202,14 @@ static void cmd_mcdn(void) {
     status(bad ? "memory card read, bad frames:" : "memory card read, slot", bad ? bad : card + 1, 0);
 }
 
-// OpenPsxRom itself rewritten and verified: offer to restart on the new version right away
-// (banks 2/3 and failures: no question, the result stays on screen).
-static void ask_reboot(u32 crc) {
-    static char l1[40];
-    fmt_hex(fmt_str(l1, "CRC "), crc, 8);
-    if (ui_ask("flash done", "OpenPsxRom written and verified", l1, "Restart on the new version now?"))
-        exec_jump(0xBFC00000, 0, 0x801FFF00);
+static void flash_result(int bad, int bank, u32 crc) {
+    static char l1[40], l2[40];
+    char *q = fmt_str(l1, "bank ");
+    q = fmt_dec(q, bank);
+    fmt_str(q, bad ? ": some blocks are wrong" : ": written and verified");
+    if (bad) { q = fmt_dec(l2, bad); fmt_str(q, bank == 1 ? " block(s) failed: flash again, no reset" : " block(s) failed: flash again"); }
+    else { q = fmt_str(l2, "CRC32 "); q = fmt_hex(q, crc, 8); if (bank == 1) fmt_str(q, " - reset to start it"); }
+    ui_flash_result(!bad, l1, l2);
 }
 
 static void cmd_srom(void) {
@@ -240,13 +241,15 @@ static void cmd_srom(void) {
         int bad = flash_write_at(bank == 2 ? ROM2_OFF : ROM3_OFF, ROM_BUF, FLASH_SIZE, flash_ui);
         if (bad == 0) status(bank == 2 ? "rom written in bank 2 and verified" : "rom written in bank 3 and verified", crc32(ROM_BUF, FLASH_SIZE), 1);
         else status("rom bank FAILED blocks:", bad, 0);
+        flash_result(bad, bank, crc32(ROM_BUF, FLASH_SIZE));
         return;
     }
     u32 wsize = is_openrom_image(ROM_BUF) ? FL_ROM_SIZE : FLASH_SIZE;
     flash_ui_begin("flashing", 0, wsize);
     int bad = flash_write(ROM_BUF, wsize, flash_ui);
-    if (bad == 0) { status("rom written and verified, reset to boot it", crc32(ROM_BUF, FLASH_SIZE), 1); ask_reboot(crc32(ROM_BUF, FLASH_SIZE)); }
+    if (bad == 0) status("rom written and verified, reset to boot it", crc32(ROM_BUF, FLASH_SIZE), 1);
     else status("rom FAILED blocks:", bad, 0);
+    flash_result(bad, 1, crc32(ROM_BUF, FLASH_SIZE));
 }
 
 static void send_block(u32 addr, u32 size, int with_more) {

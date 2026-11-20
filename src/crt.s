@@ -98,9 +98,63 @@ flush_cache:
 3:  addiu   $t1, $t1, -1
     bnez    $t1, 1b
     addiu   $t0, $t0, 0x10
-    li      $t2, 0xA0
-    jr      $t2
-    li      $t1, 0x44
+    # Not the BIOS FlushCache A(44h): on real hardware it sometimes never returned (boot, and the
+    # jump to an EXE). Same sequence, run uncached through the KSEG1 mirror of this RAM code.
+    la      $t6, 4f
+    lui     $t7, 0x2000
+    or      $t6, $t6, $t7
+    jr      $t6
+    nop
+4:  mfc0    $t0, $12
+    nop
+    li      $t1, -2
+    and     $t1, $t0, $t1       # interrupts off before isolating the cache
+    mtc0    $t1, $12
+    nop
+    nop
+    lui     $t5, 0xFFFE
+    li      $t1, 0x804
+    sw      $t1, 0x130($t5)
+    lui     $t4, 0x0001
+    mtc0    $t4, $12
+    nop
+    nop
+    li      $t2, 0
+    li      $t3, 0x0F80
+5:  sw      $zero, 0x00($t2)
+    sw      $zero, 0x10($t2)
+    sw      $zero, 0x20($t2)
+    sw      $zero, 0x30($t2)
+    sw      $zero, 0x40($t2)
+    sw      $zero, 0x50($t2)
+    sw      $zero, 0x60($t2)
+    sw      $zero, 0x70($t2)
+    bne     $t2, $t3, 5b
+    addiu   $t2, $t2, 0x80
+    mtc0    $zero, $12
+    nop
+    li      $t1, 0x800
+    sw      $t1, 0x130($t5)
+    mtc0    $t4, $12
+    nop
+    nop
+    li      $t2, 0
+    li      $t3, 0x0F80
+6:
+    .irp    o, 0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124
+    sw      $zero, \o($t2)
+    .endr
+    bne     $t2, $t3, 6b
+    addiu   $t2, $t2, 0x80
+    mtc0    $zero, $12
+    nop
+    lui     $t1, 0x0001
+    ori     $t1, $t1, 0xE988
+    sw      $t1, 0x130($t5)
+    mtc0    $t0, $12
+    nop
+    jr      $ra
+    nop
 
     .section .bss
     .balign 4

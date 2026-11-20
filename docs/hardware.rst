@@ -17,7 +17,10 @@ Cartridges
    * - Xplorer FX, double chip
      - 2 x SST 29EE020
      - Second chip at 1F040000h; 384 KB addressable, the Xplorer registers sit at 1F060000h.
-       Detected and reported; writing bank 3 is implemented, not yet used on hardware.
+       Bank 3 used on hardware. The second chip is never sent a command outside a write (seen
+       once without its software data protection: every command byte was then stored as data,
+       and the ID probe at each boot wiped it). Write bank 3 with ``make flash3 IMG=...``
+       (``build/flash3.exe``, run with ``nops /exe``), which writes and reads back 128 KB.
    * - Xplorer FX, single 512 KB chip
      - Winbond W29C040 (reported on forums)
      - Not tested. Unknown chips are reported with their ID in the boot log.

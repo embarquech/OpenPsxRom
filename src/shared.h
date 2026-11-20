@@ -28,6 +28,8 @@ typedef struct {
     unsigned int bp_entry;          // core's breakpoint handler (for the 80000040h vector)
     unsigned int baud_div;          // in-game serial divisor after BAUD/FAST/MEDI (0 or 18: 115200)
     unsigned int combo_last;        // pad combo held at the last check (rom_combo)
+    unsigned int pad_held;          // in-game menu pad, debounced (rom code: no writable statics)
+    unsigned char pad_off[16];      // frames each button has been read released
     unsigned int nc;                // cheat codes
     unsigned int c_addr[MAXC];
     unsigned short c_val[MAXC];

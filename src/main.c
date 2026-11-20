@@ -5,11 +5,25 @@ static u16 pad_now, pad_old;
 static u32 anim_tick;            // frames, for the animated save icons
 static int rep_cnt;
 static int pressed(u16 b) { return (pad_now & b) && !(pad_old & b); }
-// d-pad with auto-repeat (held: repeats after 20 frames, then every 4)
+// d-pad with auto-repeat (held: repeats after 25 frames, then every 6)
 static int moved(u16 b) {
     if (!(pad_now & b)) return 0;
     if (!(pad_old & b)) return 1;
-    return rep_cnt > 20 && (rep_cnt & 3) == 0;
+    return rep_cnt > 25 && rep_cnt % 6 == 0;
+}
+// Debounced pad: a press counts at once, a release only after 3 frames in a row without the
+// button. A contact bounce or a failed pad read (all released for one frame) used to give a
+// second press, so one push moved the cursor twice.
+static u16 pad_filtered(void) {
+    static u16 held;
+    static u8 off[16];
+    u16 raw = pad_read();
+    for (int i = 0; i < 16; i++) {
+        u16 m = 1 << i;
+        if (raw & m) { held |= m; off[i] = 0; }
+        else if ((held & m) && ++off[i] >= 3) held &= ~m;
+    }
+    return held;
 }
 static int back(void) { return pressed(PAD_CIRCLE); }
 
@@ -42,7 +56,7 @@ static void frame_end(void) {
     gfx_flip();
     sio_poll();
     pad_old = pad_now;
-    pad_now = pad_read();
+    pad_now = pad_filtered();
     if (pad_now & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)) rep_cnt++; else rep_cnt = 0;
 }
 
@@ -99,6 +113,18 @@ static void message(const char *title, const char *l1, const char *l2, u32 col) 
 
 // Yes/no question shown in the middle of a serial command: cross = 1, circle = 0. The serial port
 // is not polled meanwhile (frame_end would start another command from inside this one).
+// End of a flash write: big "FLASH OK" (green) or "FLASH FAILED" (red) for ~3 s, then back to
+// the menu (nothing to answer; the serial port is not polled meanwhile, as during the write).
+void ui_flash_result(int ok, const char *l1, const char *l2) {
+    for (int f = 0; f < 150; f++) {
+        frame_begin(ok ? "flash done" : "flash FAILED");
+        gfx_text2(160 - gfx_text_w(ok ? "FLASH OK" : "FLASH FAILED"), 80, ok ? 0x40E040 : 0x4040FF,
+                  ok ? "FLASH OK" : "FLASH FAILED");
+        if (l1) gfx_text(160 - gfx_text_w(l1) / 2, 124, C_TEXT, l1);
+        if (l2) gfx_text(160 - gfx_text_w(l2) / 2, 140, C_DIM, l2);
+        gfx_flip();
+    }
+}
 int ui_ask(const char *title, const char *l1, const char *l2, const char *question) {
     pad_now = pad_old = pad_read();                     // buttons already held do not count
     for (;;) {
@@ -109,7 +135,7 @@ int ui_ask(const char *title, const char *l1, const char *l2, const char *questi
         gfx_text(10, 215, C_TEXT, G_CROSS " yes    " G_CIRCLE " no");
         gfx_flip();
         pad_old = pad_now;
-        pad_now = pad_read();
+        pad_now = pad_filtered();
         if (pressed(PAD_CROSS)) return 1;
         if (pressed(PAD_CIRCLE)) return 0;
     }
@@ -132,6 +158,7 @@ static int confirm(const char *title, const char *l1, const char *l2) {
 // What each 128 KB bank holds (known firmware names, else the header text), whether it can be
 // started, its CRC, and which one the switch starts.
 int bank_available(int bank);
+int chip2_present(void);
 int rom_bank_ok(int bank);
 static int cfg_bank(void);
 static int find_text(const volatile u8 *p, u32 n, const char *s) {
@@ -207,19 +234,14 @@ static void screen_banks(void) {
 
 // ---------------------------------------------------------------- cartridge
 static void screen_cart(void) {
-    u8 mfr, dev, prot[8], m2, d2;
+    u8 mfr, dev, prot[8];
     int known = flash_identify(&mfr, &dev);
     // hardware sector protection only exists on AMD-style chips (Am29F010 of Datel carts);
     // Atmel/SST/Winbond page chips use software data protection: nothing to read per sector
     int lockable = mfr == 0x01 || mfr == 0x20 || mfr == 0x04;
     if (lockable) flash_protect(prot);
     // a second chip only if the first one is smaller than 512 KB (else 40000h is the same chip)
-    int chip2 = flash_chip_kb(mfr, dev) < 512 && flash_identify_at(0x40000, &m2, &d2);
-    if (chip2) {                                       // a single chip also answers there (wrap)
-        const volatile u8 *a = (const volatile u8 *)FLASH_BASE, *b = a + 0x40000;
-        chip2 = 0;
-        for (u32 i = 0; i < 0x1000 && !chip2; i++) if (a[i] != b[i]) chip2 = 1;
-    }
+    int chip2 = chip2_present();                       // read only: no command to it
     u32 crc = crc32((const void *)FLASH_BASE, FLASH_SIZE);
     for (;;) {
         frame_begin("Cartridge");
@@ -240,9 +262,7 @@ static void screen_cart(void) {
             gfx_text(16, y, C_DIM, "Protection software (no sector lock)"); y += 12;
         }
         if (chip2) {
-            p = fmt_str(s, "Chip 2     ");
-            p = fmt_hex(p, m2, 2); p = fmt_str(p, "/"); p = fmt_hex(p, d2, 2);
-            p = fmt_str(p, " at 1F040000h");
+            p = fmt_str(s, "Chip 2     at 1F040000h (not probed)");
             gfx_text(16, y, C_OK, s); y += 12;
         }
         p = fmt_str(s, "ROM CRC32  "); fmt_hex(p, crc, 8);
@@ -266,7 +286,8 @@ u32 omc_packed_size(const u8 *src);
 static struct { char title[40], chip[32]; u32 off, first, count, same, written, failed; } fu;
 void flash_ui_begin(const char *title, u32 off, u32 size) {
     u8 m = 0xFF, d = 0xFF;
-    if (off >= ROM3_OFF) flash_identify_at(ROM3_OFF, &m, &d); else flash_identify(&m, &d);
+    if (off >= ROM3_OFF) { m = 0xBF; d = 0x10; flash_identify(&m, &d); }   // chip 2: same type, not probed
+    else flash_identify(&m, &d);
     char *p = fmt_str(fu.chip, flash_chip_name(m, d));
     p = fmt_str(p, " (");
     p = fmt_hex(p, m, 2);
@@ -283,6 +304,9 @@ void flash_ui_begin(const char *title, u32 off, u32 size) {
     fu.same = fu.written = fu.failed = 0;
 }
 void flash_ui(u32 s, const char *what) {
+    // never between two pages of a block: page chips need the bytes of a page < 150 us apart,
+    // and drawing (GPU) right before a page load cut writes to the Xplorer's second chip
+    if (what[0] == 'p') return;
     u32 blk = (s & 0xFF) - fu.first, page = s >> 8;
     int end = what[0] == 'o' || what[0] == 's' || what[0] == 'F';   // ok / same / FAILED
     if (what[0] == 's') fu.same++;
@@ -513,22 +537,29 @@ int is_openrom_image(const u8 *img) {
 // marker: that one is a bank 1 image), 1F040000h-1F05FFFFh = bank 3, anything else = bank 1.
 int rom_image_bank(const u8 *img) {
     u32 entry = img[0x80] | (img[0x81] << 8) | (img[0x82] << 16) | ((u32)img[0x83] << 24);
-    if (entry >= 0x1F020000u && entry < 0x1F040000u &&
-        img[0x200] == 'R' && img[0x201] == 'O' && img[0x202] == 'M' && img[0x203] == '2') return 2;
+    // by the entry point only: an image built for bank 1 can never start in 1F020000h-1F03FFFFh
+    // (requiring Unirom's 'ROM2' tag sent a relocated Caetla to bank 1, over OpenPsxRom)
+    if (entry >= 0x1F020000u && entry < 0x1F040000u) return 2;
     if (entry >= 0x1F040000u && entry < 0x1F060000u) return 3;
     return 1;
 }
-// room for a bank: 2 needs a chip of 256 KB+, 3 a second chip answering at 40000h
+// A second chip at 40000h, found by reading only: a single 256 KB chip shows 00000h again there
+// (address wrap). No command is ever sent to it outside a flash write: the Xplorer FX's second
+// chip, once its software data protection got lost, takes every command as data, and the 6-byte
+// ID probe at each boot wiped it (the BIOS check: 'Licensed by Sony' at bank 3 stays readable).
+int chip2_present(void) {
+    u8 m, d;
+    flash_identify(&m, &d);
+    if (flash_chip_kb(m, d) >= 512) return 0;            // one big chip: 40000h is the same chip
+    const volatile u8 *a = (const volatile u8 *)FLASH_BASE, *b = a + ROM3_OFF;
+    for (u32 i = 0; i < 0x1000; i++) if (a[i] != b[i]) return 1;
+    return 0;
+}
+// room for a bank: 2 needs a chip of 256 KB+, 3 a second chip at 40000h
 int bank_available(int bank) {
     u8 m, d;
     if (bank == 2) { flash_identify(&m, &d); return flash_chip_kb(m, d) >= 256; }
-    if (bank == 3) {
-        if (!flash_identify_at(ROM3_OFF, &m, &d)) return 0;
-        // a single 256 KB chip also answers there (address wrap): then 40000h shows 00000h again
-        const volatile u8 *a = (const volatile u8 *)FLASH_BASE, *b = a + ROM3_OFF;
-        for (u32 i = 0; i < 0x1000; i++) if (a[i] != b[i]) return 1;
-        return 0;
-    }
+    if (bank == 3) return chip2_present();
     return 1;
 }
 static void flash_image(const u8 *img) {
@@ -894,7 +925,7 @@ static void screen_vram(void) {
         u32 mode = hbits[w] | (d24 ? 0x10 : 0) | (tall ? 0x24 : 0);
         gfx_raw_display(x, y, mode);
         pad_old = pad_now;
-        pad_now = pad_read();
+        pad_now = pad_filtered();
         if (pad_now & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)) rep_cnt++; else rep_cnt = 0;
         int step = rep_cnt > 30 ? 16 : 4;
         if (pad_now & PAD_LEFT) x -= step;
@@ -1186,16 +1217,10 @@ static void boot_log(void) {
     q = fmt_str(q, " (ID "); q = fmt_hex(q, m, 2); q = fmt_str(q, "/"); q = fmt_hex(q, d, 2);
     q = fmt_str(q, "), ROM CRC "); fmt_hex(q, crc32((const void *)FLASH_BASE, 0x10000), 8);
     blog(t);
-    {   // second chip of double-bank carts (Xplorer FX Pro): commands at 40000h
-        u8 m2, d2;
-        int a2 = flash_identify_at(0x40000, &m2, &d2);
+    {   // second chip of double-bank carts (Xplorer FX): read only, never a command at boot
+        extern int chip2_present(void);
         q = fmt_str(t, "Flash @40000h: ");
-        if (a2) {
-            q = fmt_str(q, flash_chip_name(m2, d2));
-            q = fmt_str(q, " (ID "); q = fmt_hex(q, m2, 2); q = fmt_str(q, "/"); q = fmt_hex(q, d2, 2); fmt_str(q, ")");
-        } else {
-            q = fmt_str(q, "no answer (data "); q = fmt_hex(q, m2, 2); q = fmt_str(q, " "); q = fmt_hex(q, d2, 2); fmt_str(q, ")");
-        }
+        fmt_str(q, chip2_present() ? "second chip present (not probed)" : "none");
         blog(t);
     }
     q = fmt_str(t, "Cheats: "); q = fmt_dec(q, nch); q = fmt_str(q, " codes, saves in flash: ");
@@ -1368,7 +1393,7 @@ int main(void) {
         dbg(t);
     }
 #endif
-    enum { M_BOOT, M_UNLOCK, M_OPTIONS, M_CHEATS, M_TOOLS, M_ABOUT, M_INSTALL };
+    enum { M_BOOT, M_UNLOCK, M_OPTIONS, M_CHEATS, M_TOOLS, M_ABOUT, M_RESTART, M_INSTALL };
     cheats_load();
 #ifdef SETCFG
     // one-shot tool build (RAM exe): store the switch-off setting without the menu (no TV)
@@ -1391,7 +1416,7 @@ int main(void) {
     nch = 2;
 #endif
     static const char *const items[] = {
-        "Boot CD", "Unlock drive + boot CD", "Boot options", "Cheats", "Tools", "About",
+        "Boot CD", "Unlock drive + boot CD", "Boot options", "Cheats", "Tools", "About", "Restart",
 #ifdef BOOTDISC
         "Install OpenPsxRom to cartridge",
 #endif
@@ -1403,6 +1428,7 @@ int main(void) {
         "GameShark codes, applied while the game runs.",
         "CD browser, CD audio, VRAM, memory cards...",
         "What OpenPsxRom can do.",
+        "Restart the console (as the reset button).",
         "Write OpenPsxRom " OPENROM_VERSION " to the cartridge flash.",
     };
     enum { N = sizeof items / sizeof items[0] };
@@ -1431,7 +1457,8 @@ int main(void) {
         {   // emulator check of the progress screens (no serial / flash write in the emulator)
             static int t;
             if (++t == 30) {
-                if (UITEST == 4) screen_banks();
+                if (UITEST == 5) { ui_flash_result(1, "bank 2: written and verified", "CRC32 1234ABCD"); ui_flash_result(0, "bank 1: some blocks are wrong", "2 block(s) failed: flash again, no reset"); }
+                else if (UITEST == 4) screen_banks();
                 else if (UITEST == 3) ui_ask("flash done", "OpenPsxRom written and verified", "CRC 29291983", "Restart on the new version now?");
                 else if (UITEST == 1) {
                     flash_ui_begin("flashing", ROM2_OFF, FLASH_SIZE);
@@ -1481,6 +1508,10 @@ int main(void) {
             if (sel == M_CHEATS) screen_cheats();
             if (sel == M_TOOLS) screen_tools();
             if (sel == M_ABOUT) screen_about();
+            if (sel == M_RESTART) {                     // like the REST serial command: BIOS entry
+                gfx_shutdown();
+                exec_jump(0xBFC00000, 0, 0x801FFF00);
+            }
 #ifdef BOOTDISC
             if (sel == M_INSTALL) install_rom();
 #endif
