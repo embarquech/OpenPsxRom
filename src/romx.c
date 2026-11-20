@@ -7,6 +7,7 @@
 //   rom_halted  a hardware breakpoint fired: report, then serve commands until /cont
 //   rom_crash   unresolved exception: serial report + registers screen, commands still served
 //   rom_menu    in-game menu (Xplorer switch off->on): cheats on/off, resume
+//   rom_combo   pad combo check (core, 1 vblank in 8, SIO0 idle) -> rom_menu
 #include "shared.h"
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -35,9 +36,14 @@ static const u8 font8[][8] = {
 
 // ================================================================== boot
 // Unpack the OMC1-compressed payload (see src/lz.c for the format) into RAM.
-void rom_unpack(const u8 *src, u8 *dst) {
+// Returns 0 if the result matches the CRC32 of the header, 1 otherwise (bad header or data read
+// from the cartridge: the boot code then reads it again instead of running garbage).
+int rom_unpack(const u8 *src, u8 *dst) {
+    if (src[0] != 'O' || src[1] != 'M' || src[2] != 'C' || src[3] != '1') return 1;
     u32 n = src[4] | (src[5] << 8) | (src[6] << 16) | ((u32)src[7] << 24);
+    u32 crc = src[8] | (src[9] << 8) | (src[10] << 16) | ((u32)src[11] << 24);
     u32 end = src[12] | (src[13] << 8) | (src[14] << 16) | ((u32)src[15] << 24);
+    if (n > 0x50000 || end > 0x10000) return 1;
     const u8 *p = src + 16, *e = src + end;
     u8 *o = dst, *oe = dst + n;
     while (o < oe && p < e) {
@@ -51,6 +57,12 @@ void rom_unpack(const u8 *src, u8 *dst) {
             }
         }
     }
+    u32 c = 0xFFFFFFFFu;                               // CRC32 (no table: position independent)
+    for (const u8 *q = dst; q < oe; q++) {
+        c ^= *q;
+        for (int k = 0; k < 8; k++) c = (c >> 1) ^ (0xEDB88320u & -(c & 1));
+    }
+    return o != oe || ~c != crc;
 }
 
 // ================================================================== serial
@@ -665,4 +677,20 @@ void rom_menu(void) {
     fill(0, 0, 320, 240, 0);
     screen_give(st);
     SIO0_MODE = sm; SIO0_BAUD = sb; SIO0_CTRL = sc;
+}
+
+// L1+R1+L2+R2+START+SELECT on pad 1: the in-game menu, as the Xplorer switch off->on. Called by the
+// core on one vblank in 8, only while SIO0 is idle; the game's SIO0 settings are put back.
+void rom_combo(void) {
+    enum { COMBO = 0x0F09 };
+    u16 sm = SIO0_MODE, sb = SIO0_BAUD, sc = SIO0_CTRL;
+    pad_init();
+    u32 held = (pad_read() & COMBO) == COMBO;
+#ifdef COMBOTEST
+    { static volatile u32 *n = (volatile u32 *)(SH_ADDR + 0x3FC); if (++*n == 15) held = 1; }  // emulator test
+#endif
+    SIO0_MODE = sm; SIO0_BAUD = sb; SIO0_CTRL = sc & ~0x10;
+    u32 last = SH->combo_last;
+    SH->combo_last = held;
+    if (held && !last) rom_menu();
 }

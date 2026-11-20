@@ -17,7 +17,7 @@ for line in subprocess.run([nm, elf], capture_output=True, text=True).stdout.spl
     p = line.split()
     if len(p) == 3:
         syms[p[2]] = int(p[0], 16) & 0xFFFFFFFF
-off = syms['__payload_rom'] - 0x1F000000
+off = syms['__payload_rom'] - (syms['__payload_rom'] & 0xFFFE0000)   # bank base (1F000000h / 1F040000h)
 size = syms['__payload_size']
 data = open(raw, 'rb').read()
 payload = data[off:off + size]

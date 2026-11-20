@@ -11,6 +11,11 @@ SRC := src/header.s src/crt.s src/main.c src/gfx.c src/pad.c src/sio.c src/proto
 OBJ := $(patsubst src/%,build/%.o,$(SRC)) build/core_blob.o
 
 all: build/openrom.rom
+# a second OpenPsxRom for bank 3 (1F040000h), "bank 3" shown in the title bar: build/openrom_bank3.rom
+bank3:
+	$(MAKE) -B LDS=rom_bank3.ld DEFS="$(DEFS) -DBANK3 -Wa,--defsym,BANK3=1" build/openrom.rom
+	cp build/openrom.rom build/openrom_bank3.rom
+	$(MAKE) -B build/openrom.rom
 disc: release/openrom.bin
 lo: build/openrom_lo.exe
 
@@ -30,8 +35,9 @@ build/core_blob.o: build/core.elf
 	$(OBJCOPY) -O binary $< build/core.bin
 	cd build && $(BOBJCOPY) -I binary -O elf32-littlemips -B mips --rename-section .data=.rodata,alloc,load,readonly,data,contents core.bin core_blob.o
 
-build/openrom.elf: $(OBJ) rom.ld
-	$(CC) $(CFLAGS) -T rom.ld -Wl,--gc-sections $(OBJ) -o $@ -lgcc
+LDS ?= rom.ld
+build/openrom.elf: $(OBJ) $(LDS)
+	$(CC) $(CFLAGS) -T $(LDS) -Wl,--gc-sections $(OBJ) -o $@ -lgcc
 build/openrom.rom: build/openrom.elf
 	$(OBJCOPY) -O binary -j .header -j .romx -j .text -j .rodata -j .data $< build/openrom.raw
 	python tools/packrom.py build/openrom.elf build/openrom.raw build/openrom.packed $(TOOLS)nm

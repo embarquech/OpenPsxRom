@@ -22,6 +22,9 @@ static void frame_begin(const char *title) {
     gfx_rect(0, 30, 320, 1, 0xF0C060);
     int x = gfx_text2(10, 7, 0x40D8FF, "OpenPsxRom");
     gfx_text(x + 4, 15, 0x90B0C0, "v" OPENROM_VERSION);
+#ifdef BANK3
+    gfx_text(x + 4, 4, 0xFF6040, "bank 3");          // the test copy started from bank 3
+#endif
     gfx_text(320 - 10 - gfx_text_w(title), 15, C_TEXT, title);
     gfx_shade(8, 38, 304, 168, 0x000000);
     gfx_shade(0, 210, 320, 30, 0x000000);
@@ -45,8 +48,10 @@ static void frame_end(void) {
 
 static void help(const char *s) { cur_help = s; }
 
-// Progress screen for long operations (card, CD): one frame per call.
-void ui_progress(const char *what, u32 done, u32 total) {
+// Progress screen for long operations (card, CD, serial uploads): one frame per call, with up to
+// 4 optional lines of details under the bar.
+void ui_progress(const char *what, u32 done, u32 total) { ui_progress_info(what, done, total, 0); }
+void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info) {
     frame_begin(what);
     char s[48], *p = fmt_str(s, what);
     p = fmt_str(p, "... ");
@@ -55,6 +60,7 @@ void ui_progress(const char *what, u32 done, u32 total) {
     gfx_text(40, 100, C_TEXT, s);
     gfx_rect(40, 116, 240, 10, 0x404040);
     if (total) gfx_rect(40, 116, 240 * done / total, 10, 0x40C040);
+    for (int i = 0; info && i < 4; i++) if (info[i]) gfx_text(40, 136 + i * 14, i > 1 ? C_DIM : C_TEXT, info[i]);
     gfx_flip();
 }
 
@@ -91,6 +97,24 @@ static void message(const char *title, const char *l1, const char *l2, u32 col) 
     }
 }
 
+// Yes/no question shown in the middle of a serial command: cross = 1, circle = 0. The serial port
+// is not polled meanwhile (frame_end would start another command from inside this one).
+int ui_ask(const char *title, const char *l1, const char *l2, const char *question) {
+    pad_now = pad_old = pad_read();                     // buttons already held do not count
+    for (;;) {
+        frame_begin(title);
+        gfx_text(24, 80, C_OK, l1);
+        if (l2) gfx_text(24, 96, C_TEXT, l2);
+        gfx_text(24, 124, C_SEL, question);
+        gfx_text(10, 215, C_TEXT, G_CROSS " yes    " G_CIRCLE " no");
+        gfx_flip();
+        pad_old = pad_now;
+        pad_now = pad_read();
+        if (pressed(PAD_CROSS)) return 1;
+        if (pressed(PAD_CIRCLE)) return 0;
+    }
+}
+
 // hold START + cross to confirm a destructive action
 static int confirm(const char *title, const char *l1, const char *l2) {
     for (;;) {
@@ -101,6 +125,83 @@ static int confirm(const char *title, const char *l1, const char *l2) {
         frame_end();
         if (back()) return 0;
         if ((pad_now & PAD_START) && pressed(PAD_CROSS)) return 1;
+    }
+}
+
+// ---------------------------------------------------------------- cartridge banks
+// What each 128 KB bank holds (known firmware names, else the header text), whether it can be
+// started, its CRC, and which one the switch starts.
+int bank_available(int bank);
+int rom_bank_ok(int bank);
+static int cfg_bank(void);
+static int find_text(const volatile u8 *p, u32 n, const char *s) {
+    for (u32 i = 0; i + strlen(s) <= n; i++) {
+        int k = 0;
+        while (s[k] && p[i + k] == (u8)s[k]) k++;
+        if (!s[k]) return 1;
+    }
+    return 0;
+}
+static void bank_name(int bank, char *out) {
+    const volatile u8 *b = (const volatile u8 *)(FLASH_BASE + (bank - 1) * 0x20000u);
+    int blank = 1;
+    for (u32 i = 0; i < 0x200 && blank; i++) if (b[i] != 0xFF) blank = 0;
+    if (blank) { fmt_str(out, "empty"); return; }
+    static const char *const known[][2] = {
+        {"OpenPsxRom", "OpenPsxRom"}, {"OpenROM", "OpenROM (old)"}, {"UNIROM", "Unirom"}, {"Unirom", "Unirom"},
+        {"CAETLA", "Caetla"}, {"Caetla", "Caetla"}, {"XPLORER", "Xplorer"}, {"Xplorer", "Xplorer"},
+        {"Action Replay", "Action Replay"}, {"GameShark", "GameShark"}, {"DATEL", "Datel firmware"},
+    };
+    for (u32 k = 0; k < sizeof known / sizeof known[0]; k++)
+        if (find_text(b, 0x400, known[k][0])) { fmt_str(out, known[k][1]); return; }
+    if (*(const volatile u32 *)(b + 0x84) != 0x6563694Cu) { fmt_str(out, "data (no boot header)"); return; }
+    int n = 0;                                          // the text after "Licensed by Sony..."
+    for (u32 i = 0xB0; i < 0xE8 && n < 26 && b[i] >= 32 && b[i] < 127; i++) out[n++] = b[i];
+    out[n] = 0;
+    if (!n) fmt_str(out, "unknown firmware");
+}
+static void screen_banks(void) {
+    char name[3][32];
+    u32 crc[3];
+    int avail[3];
+    for (int k = 0; k < 3; k++) {
+        avail[k] = bank_available(k + 1);
+        if (!avail[k]) continue;
+        frame_begin("Cartridge banks");
+        gfx_text(24, 100, C_TEXT, "reading the cartridge...");
+        gfx_flip();
+        bank_name(k + 1, name[k]);
+        crc[k] = crc32((const void *)(FLASH_BASE + k * 0x20000u), 0x20000);
+    }
+    for (;;) {
+        frame_begin("Cartridge banks");
+        int sw = *(volatile u8 *)0x1F060000 & 1, boot = cfg_bank();
+        char s[64], *p;
+        for (int k = 0; k < 3; k++) {
+            int y = 44 + k * 40;
+            p = fmt_str(s, "Bank ");
+            p = fmt_dec(p, k + 1);
+            p = fmt_str(p, "  ");
+            fmt_hex(p, 0x1F000000u + k * 0x20000u, 8);
+            gfx_text(16, y, C_SEL, s);
+            if (!avail[k]) { gfx_text(32, y + 12, C_DIM, k == 2 ? "not on this cartridge (no 2nd chip)" : "not on this cartridge"); continue; }
+            gfx_text(32, y + 12, name[k][0] == 'e' ? C_DIM : C_OK, name[k]);
+            if (name[k][0] == 'e') continue;                // empty: no CRC
+            p = fmt_str(s, "CRC ");
+            p = fmt_hex(p, crc[k], 8);
+            if (k == 0) p = fmt_str(p, "  starts: switch ON");
+            else if (rom_bank_ok(k + 1)) p = fmt_str(p, boot == k + 1 ? "  starts: switch OFF" : "  startable");
+            gfx_text(32, y + 24, C_DIM, s);
+        }
+        p = fmt_str(s, "Switch now: ");
+        p = fmt_str(p, sw ? "ON" : "OFF");
+        p = fmt_str(p, "   OFF at power-on: ");
+        fmt_str(p, boot == 2 ? "bank 2" : boot == 3 ? "bank 3" : "bypass");
+        gfx_text(16, 168, C_TEXT, s);
+        gfx_text(16, 182, C_DIM, "(set in Boot options)");
+        help(G_CIRCLE " back");
+        frame_end();
+        if (back()) return;
     }
 }
 
@@ -159,17 +260,62 @@ u32 omc_pack(const u8 *src, u32 n, u8 *dst, u32 max);
 u32 omc_unpack(const u8 *src, u8 *dst, u32 max);
 int omc_valid(const u8 *src);
 u32 omc_packed_size(const u8 *src);
-// flash progress: sector in the low byte, page offset (for page chips) above
-static u32 fp_first, fp_count;
-static void fl_prog(u32 s, const char *what) {
-    (void)what;
-    u32 sec = s & 0xFF, off = s >> 8;
-    ui_progress("writing to the cartridge", (sec - fp_first) * 16384 + off, fp_count * 16384);
+// Flash progress screen, shared by every flash write (menu, CD, serial /rom): chip type, bar,
+// block n / count with its step, blocks unchanged / written / failed, bank and address.
+// The callback gets the 16 KB block in the low byte and the page offset (page chips) above.
+static struct { char title[40], chip[32]; u32 off, first, count, same, written, failed; } fu;
+void flash_ui_begin(const char *title, u32 off, u32 size) {
+    u8 m = 0xFF, d = 0xFF;
+    if (off >= ROM3_OFF) flash_identify_at(ROM3_OFF, &m, &d); else flash_identify(&m, &d);
+    char *p = fmt_str(fu.chip, flash_chip_name(m, d));
+    p = fmt_str(p, " (");
+    p = fmt_hex(p, m, 2);
+    p = fmt_str(p, "/");
+    p = fmt_hex(p, d, 2);
+    fmt_str(p, ")");
+    u32 bank = off >= ROM3_OFF ? 3 : off >= ROM2_OFF ? 2 : 1;
+    p = fmt_str(fu.title, title);
+    p = fmt_str(p, " bank ");
+    fmt_dec(p, bank);
+    fu.off = off;
+    fu.first = off / FLASH_SECT;
+    fu.count = size / FLASH_SECT;
+    fu.same = fu.written = fu.failed = 0;
+}
+void flash_ui(u32 s, const char *what) {
+    u32 blk = (s & 0xFF) - fu.first, page = s >> 8;
+    int end = what[0] == 'o' || what[0] == 's' || what[0] == 'F';   // ok / same / FAILED
+    if (what[0] == 's') fu.same++;
+    else if (what[0] == 'o') fu.written++;
+    else if (what[0] == 'F') fu.failed++;
+    static char l0[40], l1[40], l2[40], l3[40];
+    fmt_str(l0, fu.chip);
+    char *p = fmt_str(l1, "block ");
+    p = fmt_dec(p, blk + 1);
+    p = fmt_str(p, " / ");
+    p = fmt_dec(p, fu.count);
+    p = fmt_str(p, " (16 KB): ");
+    fmt_str(p, what[0] == 'p' ? "write" : what);
+    p = fmt_str(l2, "unchanged ");
+    p = fmt_dec(p, fu.same);
+    p = fmt_str(p, "  written ");
+    p = fmt_dec(p, fu.written);
+    p = fmt_str(p, "  failed ");
+    fmt_dec(p, fu.failed);
+    u32 bank = fu.off >= ROM3_OFF ? 3 : fu.off >= ROM2_OFF ? 2 : 1;
+    p = fmt_str(l3, "bank ");
+    p = fmt_dec(p, bank);
+    p = fmt_str(p, bank == 1 ? " (OpenPsxRom) at " : " at ");
+    p = fmt_hex(p, 0x1F000000u + fu.off, 8);
+    p = fmt_str(p, ", ");
+    p = fmt_dec(p, fu.count * 16);
+    fmt_str(p, " KB");
+    const char *info[4] = {l0, l1, l2, l3};
+    ui_progress_info(fu.title, blk * FLASH_SECT + (end ? FLASH_SECT : page), fu.count * FLASH_SECT, info);
 }
 static int flash_area(u32 off, const u8 *data, u32 size) {
-    fp_first = off / FLASH_SECT;
-    fp_count = size / FLASH_SECT;
-    return flash_write_at(off, data, size, fl_prog);
+    flash_ui_begin("saving to", off, size);
+    return flash_write_at(off, data, size, flash_ui);
 }
 
 // ---------------------------------------------------------------- memory card manager
@@ -334,14 +480,6 @@ static int is_rom(int i) {
     return !cde[i].dir && n > 4 && cde[i].name[n - 4] == '.' && cde[i].name[n - 3] == 'R' &&
            cde[i].name[n - 2] == 'O' && cde[i].name[n - 1] == 'M';
 }
-static void flash_prog(u32 s, const char *what) {
-    u32 sec = s & 0xFF, off = s >> 8;
-    char t[40], *p = fmt_str(t, "block ");
-    p = fmt_dec(p, sec);
-    p = fmt_str(p, ": ");
-    fmt_str(p, what);
-    ui_progress(t, sec * 16384 + off, 8 * 16384);
-}
 // Confirmation (hold START + cross), then write + verify. Returns 0 if cancelled.
 static int flash_confirm(const char *what) {
     u8 mfr, dev;
@@ -397,12 +535,14 @@ static void flash_image(const u8 *img) {
     int bad, bank = rom_image_bank(img);
     if (bank > 1) {
         if (!bank_available(bank)) { message("Flash ROM", bank == 2 ? "no bank 2 on this cartridge" : "no bank 3 (second chip)", "nothing written", C_ERR); return; }
-        bad = flash_write_at(bank == 2 ? ROM2_OFF : ROM3_OFF, img, FLASH_SIZE, flash_prog);
+        flash_ui_begin("flashing", bank == 2 ? ROM2_OFF : ROM3_OFF, FLASH_SIZE);
+        bad = flash_write_at(bank == 2 ? ROM2_OFF : ROM3_OFF, img, FLASH_SIZE, flash_ui);
         message(bank == 2 ? "Flash ROM bank 2" : "Flash ROM bank 3", bad ? "FAILED: some blocks are wrong" : "written and verified, OpenPsxRom untouched",
                 bad ? "OpenPsxRom untouched" : "switch OFF + Boot options to start it", bad ? C_ERR : C_OK);
         return;
     }
-    bad = flash_write(img, is_openrom_image(img) ? FL_ROM_SIZE : FLASH_SIZE, flash_prog);
+    flash_ui_begin("flashing", 0, is_openrom_image(img) ? FL_ROM_SIZE : FLASH_SIZE);
+    bad = flash_write(img, is_openrom_image(img) ? FL_ROM_SIZE : FLASH_SIZE, flash_ui);
     message("Flash ROM", bad ? "FAILED: some blocks are wrong" : "ROM written and verified",
             bad ? "do not reset: try again" : "reset the console to start it", bad ? C_ERR : C_OK);
 }
@@ -657,7 +797,7 @@ static void screen_options(void) {
         static const char *const names[] = {"In-game menu (switch)", "Serial debug in game", "printf -> serial", "Crash screen", "Video mode",
                                             "Switch OFF at power-on"};
         const char *desc[] = {
-            "Xplorer switch off then on: menu over the game",
+            "switch off/on or L1R1L2R2+START+SELECT",
             "nops /dump /bin /exe /halt /cont while it runs",
             "game and BIOS printf go to the serial port",
             "registers on screen + serial if it crashes",
@@ -985,6 +1125,7 @@ static void screen_padtest(void) {
 static void screen_tools(void) {
     static const char *const items[] = {
         "CD browser", "CD audio player", "VRAM viewer", "Memory cards", "Controller test", "Hex editor", "Cartridge info",
+        "Cartridge banks",
     };
     static const char *const desc[] = {
         "Run an EXE, play a .STR, flash a .ROM.",
@@ -994,6 +1135,7 @@ static void screen_tools(void) {
         "Buttons and analog sticks of both pads.",
         "View / edit RAM, ROM, BIOS, scratchpad.",
         "Flash chip, protection, ROM checksum.",
+        "Which program is in which bank.",
     };
     enum { N = sizeof items / sizeof items[0] };
     static int sel;
@@ -1018,6 +1160,7 @@ static void screen_tools(void) {
             case 4: screen_padtest(); break;
             case 5: screen_hex(); break;
             case 6: screen_cart(); break;
+            case 7: screen_banks(); break;
             }
         }
     }
@@ -1278,14 +1421,50 @@ int main(void) {
                 gfx_rect(24, y - 4, 2, 16, 0x40D8FF);
             }
             gfx_text(40, y, i == sel ? C_SEL : C_TEXT, items[i]);
-            if (i == M_TOOLS) gfx_text(282, y, i == sel ? C_SEL : C_DIM, G_RIGHT);
         }
         gfx_text(160 - gfx_text_w(desc[sel]) / 2, 190, 0xA0C0D0, desc[sel]);
         help(G_CROSS " select    " G_UP " " G_DOWN " move");
         frame_end();
         sel = list_move(N, sel);
         int boot = 0;
-#ifdef AUTOBOOT
+#ifdef UITEST
+        {   // emulator check of the progress screens (no serial / flash write in the emulator)
+            static int t;
+            if (++t == 30) {
+                if (UITEST == 4) screen_banks();
+                else if (UITEST == 3) ui_ask("flash done", "OpenPsxRom written and verified", "CRC 29291983", "Restart on the new version now?");
+                else if (UITEST == 1) {
+                    flash_ui_begin("flashing", ROM2_OFF, FLASH_SIZE);
+                    flash_ui(8, "same"); flash_ui(9, "ok"); flash_ui(10, "write"); flash_ui(10 | (0x2000 << 8), "page");
+                } else {
+                    static const char *const info[4] = {"84 KB / 202 KB", "11.2 KB/s, 10 s left",
+                        "load 80010000  entry 80010000", "Sony Computer Entertainment Inc"};
+                    ui_progress_info("loading the program", 84 * 1024, 202 * 1024, info);
+                }
+                for (;;);
+            }
+        }
+#endif
+#ifdef EXETEST
+        {   // emulator test of the serial /exe path: PGBX.EXE from the CD, exe_start() straight from the menu
+            static int t;
+            if (++t == 60) {
+                static CdEntry e[16];
+                static u8 h[2048];
+                u32 rl, rs;
+                cd_init();
+                int n = iso_root(&rl, &rs) == 0 ? iso_list(rl, rs, e, 16) : 0;
+                for (int i = 0; i < n; i++)
+                    if (e[i].name[0] == 'P' && e[i].name[1] == 'G' && !cd_read(e[i].lba, 1, h)) {
+                        const u32 *q = (const u32 *)h;
+                        u32 len = (q[0x1C / 4] + 2047) & ~2047u;
+                        cd_read(e[i].lba + 1, len / 2048, (u8 *)q[0x18 / 4]);
+                        sio_puts("EXETEST: exe_start\r\n");
+                        exe_start(h);
+                    }
+            }
+        }
+#elif defined(AUTOBOOT)
         { static int t; if (++t == 60) boot = 1; }
 #endif
         if (pressed(PAD_CROSS) || pressed(PAD_START)) {

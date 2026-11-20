@@ -136,6 +136,10 @@ void exe_start(const u8 *hdr) __attribute__((noreturn));
 
 // main.c
 void ui_progress(const char *what, u32 done, u32 total);
+void flash_ui_begin(const char *title, u32 off, u32 size);
+void flash_ui(u32 s, const char *what);
+int ui_ask(const char *title, const char *l1, const char *l2, const char *question);
+void ui_progress_info(const char *what, u32 done, u32 total, const char *const *info);
 
 // util.c
 void *memcpy(void *d, const void *s, u32 n);

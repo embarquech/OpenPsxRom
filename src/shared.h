@@ -27,6 +27,7 @@ typedef struct {
     unsigned int cand_width;        // 1 or 2 bytes
     unsigned int bp_entry;          // core's breakpoint handler (for the 80000040h vector)
     unsigned int baud_div;          // in-game serial divisor after BAUD/FAST/MEDI (0 or 18: 115200)
+    unsigned int combo_last;        // pad combo held at the last check (rom_combo)
     unsigned int nc;                // cheat codes
     unsigned int c_addr[MAXC];
     unsigned short c_val[MAXC];
@@ -35,9 +36,17 @@ typedef struct {
 
 #define SH ((volatile Shared *)SH_ADDR)
 
+// Where this build is linked: bank 1 (1F000000h), or bank 3 (1F040000h, make bank3: a second
+// OpenPsxRom started by the switch OFF + "bank 3" boot option, for tests)
+#ifdef BANK3
+#define ROM_HDR 0x1F040000u
+#else
+#define ROM_HDR 0x1F000000u
+#endif
 // Entry points of the ROM code, pointers in the cartridge header (header.s)
-#define ROM_BREAK   (*(unsigned int *)0x1F0000ECu)  // int  rom_break(u32 *tcb): break, 1 = resume
-#define ROM_FEED    (*(unsigned int *)0x1F0000F0)   // int  rom_feed(void): handle SH->window
-#define ROM_HALTED  (*(unsigned int *)0x1F0000F4)   // void rom_halted(void): breakpoint hit
-#define ROM_CRASH   (*(unsigned int *)0x1F0000F8)   // void rom_crash(const u32 *tcb)
-#define ROM_MENU    (*(unsigned int *)0x1F0000FC)   // void rom_menu(void): in-game menu
+#define ROM_COMBO   (*(unsigned int *)(ROM_HDR + 0xE8))  // void rom_combo(void): pad combo -> in-game menu
+#define ROM_BREAK   (*(unsigned int *)(ROM_HDR + 0xEC))  // int  rom_break(u32 *tcb): break, 1 = resume
+#define ROM_FEED    (*(unsigned int *)(ROM_HDR + 0xF0))   // int  rom_feed(void): handle SH->window
+#define ROM_HALTED  (*(unsigned int *)(ROM_HDR + 0xF4))   // void rom_halted(void): breakpoint hit
+#define ROM_CRASH   (*(unsigned int *)(ROM_HDR + 0xF8))   // void rom_crash(const u32 *tcb)
+#define ROM_MENU    (*(unsigned int *)(ROM_HDR + 0xFC))   // void rom_menu(void): in-game menu

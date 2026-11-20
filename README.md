@@ -45,7 +45,7 @@ through the same serial protocol, so the existing `nops` tool works with it.
 - Detailed boot log on the serial port (BIOS, flash chips, switch, pads, memory cards, CD)
 
 **While a game runs** (small resident core at 8000C000h + code executed from the cartridge ROM)
-- In-game menu: Xplorer switch off then on (cheats on/off, code finder)
+- In-game menu: Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT (cheats on/off, code finder)
 - Code finder (search RAM values, narrow down, turn results into cheats)
 - printf/TTY to the serial port, crash screen with registers
 - Remote debugging with `nops` (`/debug`, dump, memory writes, halt/continue, breakpoints)

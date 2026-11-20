@@ -9,6 +9,7 @@
 !/rom.ld
 !/exe.ld
 !/exe_lo.ld
+!/rom_bank3.ld
 !/src/
 !/core/
 !/test/

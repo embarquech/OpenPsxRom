@@ -82,6 +82,22 @@ call_addr:
 # BIOS A0h:44h FlushCache
     .global flush_cache
 flush_cache:
+    # never while a DMA runs (GPU lists of the menu, CD): cache isolation then freezes the console
+    lui     $t0, 0x1F80
+    ori     $t0, $t0, 0x1088
+    li      $t1, 7
+1:  lui     $t3, 0x0010
+2:  lw      $t2, 0($t0)
+    nop
+    srl     $t2, $t2, 24
+    andi    $t2, $t2, 1
+    beqz    $t2, 3f
+    addiu   $t3, $t3, -1
+    bnez    $t3, 2b
+    nop
+3:  addiu   $t1, $t1, -1
+    bnez    $t1, 1b
+    addiu   $t0, $t0, 0x10
     li      $t2, 0xA0
     jr      $t2
     li      $t1, 0x44
@@ -115,6 +131,14 @@ bios_b0:
 # void exe_tramp(u32 b_addr, u32 b_size, u32 pc, u32 gp_sp[2])
     .global exe_tramp, exe_tramp_end
 exe_tramp:
+    # The menu runs inside the debug exception that caught the shell (never returned with rfe):
+    # start the program like the BIOS would, kernel mode and interrupts off in all three levels
+    # of the SR mode stack (the program enables them itself).
+    mfc0    $t0, $12
+    li      $t1, 0xFFFFFFC0
+    and     $t0, $t0, $t1
+    mtc0    $t0, $12
+    nop
     lw      $gp, 0($a3)
     lw      $sp, 4($a3)
     beqz    $a1, 2f

@@ -54,7 +54,50 @@ static void accept(const char *resp) {
 }
 
 // Receive len bytes to dst. V2: CHEK / sum / MORE|ERR! per 2 KB chunk. Returns 0 if ok.
+// With rx_what set, a progress bar is drawn once a whole chunk is in, before CHEK: the PC waits for
+// CHEK before sending anything (it sends the next chunk right after the checksum, without waiting
+// for MORE: drawing later loses its first bytes). V1 streams: no bar.
+static const char *rx_what;
+static u32 rx_addr, rx_entry;           // shown under the bar (0: not an EXE / not a RAM load)
+static const char *rx_region;           // PS-EXE header marker (region text), or 0
+static u32 rx_lines;                    // time since the start, in scanlines (root counter 1)
+static u16 rx_last;
+static void rx_progress(u32 done, u32 len) {
+    u16 now = REG16(0x1F801110);
+    rx_lines += (u16)(now - rx_last);
+    rx_last = now;
+    static char l0[40], l1[40], l2[40], l3[40];
+    char *p = fmt_dec(l0, done >> 10);
+    p = fmt_str(p, " KB / ");
+    p = fmt_dec(p, (len + 1023) >> 10);
+    fmt_str(p, " KB");
+    u32 rate = rx_lines >= 100 ? done * 157u / (rx_lines / 100) : 0;   // bytes/s (~15700 lines/s)
+    l1[0] = l2[0] = l3[0] = 0;
+    if (rate) {
+        p = fmt_dec(l1, rate / 1000);
+        p = fmt_str(p, ".");
+        p = fmt_dec(p, rate / 100 % 10);
+        p = fmt_str(p, " KB/s, ");
+        p = fmt_dec(p, (len - done) / rate);
+        fmt_str(p, " s left");
+    }
+    if (rx_addr) {
+        p = fmt_str(l2, "load ");
+        p = fmt_hex(p, rx_addr, 8);
+        if (rx_entry) { p = fmt_str(p, "  entry "); fmt_hex(p, rx_entry, 8); }
+    }
+    if (rx_region) {
+        int i = 0;
+        while (i < 30 && rx_region[i] >= 32 && rx_region[i] < 127) { l3[i] = rx_region[i]; i++; }
+        l3[i] = 0;
+    }
+    const char *info[4] = {l0, l1[0] ? l1 : 0, l2[0] ? l2 : 0, l3[0] ? l3 : 0};
+    ui_progress_info(rx_what, done, len, info);
+}
 static int receive(u8 *dst, u32 len) {
+    REG32(0x1F801114) = 0x0100;         // root counter 1 counts scanlines (upload speed)
+    rx_last = REG16(0x1F801110);
+    rx_lines = 0;
     u32 done = 0;
     while (done < len) {
         u32 n = len - done < CHUNK ? len - done : CHUNK;
@@ -70,6 +113,7 @@ static int receive(u8 *dst, u32 len) {
             if (c < 0) { lost = 1; break; }
             dst[done + i] = (u8)c;
         }
+        if (rx_what && len > CHUNK && !lost) rx_progress(done + n, len);
         sio_puts("CHEK");
         u32 want = rx32();
         if (aborted) return -1;
@@ -96,7 +140,10 @@ static void cmd_sbin(void) {
         status("poke", addr, 1);
         return;
     }
+    rx_what = "loading the file";
+    rx_addr = addr; rx_entry = 0; rx_region = 0;
     receive((u8 *)addr, len);
+    rx_what = 0;
     flush_cache();
     status(sum8((u8 *)addr, len) == sum ? "bin ok at" : "bin CHECKSUM ERROR at", addr, 1);
 }
@@ -113,7 +160,11 @@ static void cmd_sexe(void) {
         status("exe overlaps OpenPsxRom (801A0000-801F0000)", -1, -1);
         return;
     }
+    rx_what = "loading the program";
+    rx_addr = addr; rx_entry = pc;
+    rx_region = exe_hdr[0x4C] ? (const char *)exe_hdr + 0x4C : 0;
     receive((u8 *)addr, len);
+    rx_what = 0;
     if (sum8((u8 *)addr, len) != sum) { status("exe CHECKSUM ERROR", -1, -1); return; }
     ((u32 *)exe_hdr)[0x10 / 4] = pc;
     exe_start(exe_hdr);
@@ -126,7 +177,10 @@ static void cmd_mcup(void) {
     u32 card = rx32() & 1, len = rx32(), sum = rx32();
     if (len > 131072) len = 131072;
     memset(ROM_BUF, 0, 131072);
+    rx_what = "receiving the card image";
+    rx_addr = rx_entry = 0; rx_region = 0;
     receive(ROM_BUF, len);
+    rx_what = 0;
     if (sum8(ROM_BUF, len) != sum) { status("card image CHECKSUM ERROR, nothing written", -1, -1); return; }
     if (len != 131072) { status("card image is not 128 KB, nothing written", len, 0); return; }
     int bad = mc_write_card(card, ROM_BUF, mc_prog);
@@ -148,18 +202,13 @@ static void cmd_mcdn(void) {
     status(bad ? "memory card read, bad frames:" : "memory card read, slot", bad ? bad : card + 1, 0);
 }
 
-static void flash_progress(u32 s, const char *what) {
-    if (s >> 8) return;                         // page steps: only the block steps are shown
-    char *p = fmt_str(sio_status, "flash block ");
-    p = fmt_dec(p, s);
-    p = fmt_str(p, ": ");
-    fmt_str(p, what);
-    gfx_rect(0, 222, 320, 18, 0x301808);        // the menu is not drawn meanwhile: direct status
-    gfx_text(8, 227, C_SEL, sio_status);
-    gfx_flip();
-    gfx_rect(0, 222, 320, 18, 0x301808);
-    gfx_text(8, 227, C_SEL, sio_status);
-    gfx_flip();
+// OpenPsxRom itself rewritten and verified: offer to restart on the new version right away
+// (banks 2/3 and failures: no question, the result stays on screen).
+static void ask_reboot(u32 crc) {
+    static char l1[40];
+    fmt_hex(fmt_str(l1, "CRC "), crc, 8);
+    if (ui_ask("flash done", "OpenPsxRom written and verified", l1, "Restart on the new version now?"))
+        exec_jump(0xBFC00000, 0, 0x801FFF00);
 }
 
 static void cmd_srom(void) {
@@ -172,7 +221,10 @@ static void cmd_srom(void) {
     if (len > FLASH_SIZE) { sio_puts("NOPE"); status("rom too big", len, 0); return; }
     sio_puts("FITS");
     memset(ROM_BUF, 0xFF, FLASH_SIZE);
+    rx_what = "receiving the ROM";
+    rx_addr = rx_entry = 0; rx_region = 0;
     receive(ROM_BUF, len);
+    rx_what = 0;
     if (sum8(ROM_BUF, len) != sum) { status("rom CHECKSUM ERROR, nothing written", -1, -1); return; }
     // never write a ROM that the BIOS would not start
     const char *lic = "Licensed by Sony";
@@ -184,13 +236,16 @@ static void cmd_srom(void) {
     if (bank > 1) {
         extern int bank_available(int bank);
         if (!bank_available(bank)) { status(bank == 2 ? "rom for bank 2: no room on this chip" : "rom for bank 3: no second chip", -1, -1); return; }
-        int bad = flash_write_at(bank == 2 ? ROM2_OFF : ROM3_OFF, ROM_BUF, FLASH_SIZE, flash_progress);
+        flash_ui_begin("flashing", bank == 2 ? ROM2_OFF : ROM3_OFF, FLASH_SIZE);
+        int bad = flash_write_at(bank == 2 ? ROM2_OFF : ROM3_OFF, ROM_BUF, FLASH_SIZE, flash_ui);
         if (bad == 0) status(bank == 2 ? "rom written in bank 2 and verified" : "rom written in bank 3 and verified", crc32(ROM_BUF, FLASH_SIZE), 1);
         else status("rom bank FAILED blocks:", bad, 0);
         return;
     }
-    int bad = flash_write(ROM_BUF, is_openrom_image(ROM_BUF) ? FL_ROM_SIZE : FLASH_SIZE, flash_progress);
-    if (bad == 0) status("rom written and verified, reset to boot it", crc32(ROM_BUF, FLASH_SIZE), 1);
+    u32 wsize = is_openrom_image(ROM_BUF) ? FL_ROM_SIZE : FLASH_SIZE;
+    flash_ui_begin("flashing", 0, wsize);
+    int bad = flash_write(ROM_BUF, wsize, flash_ui);
+    if (bad == 0) { status("rom written and verified, reset to boot it", crc32(ROM_BUF, FLASH_SIZE), 1); ask_reboot(crc32(ROM_BUF, FLASH_SIZE)); }
     else status("rom FAILED blocks:", bad, 0);
 }
 

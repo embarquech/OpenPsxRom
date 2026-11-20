@@ -29,7 +29,8 @@ Boot options
    * - Option
      - Effect
    * - In-game menu (switch)
-     - Xplorer switch off then on while a game runs opens the in-game menu.
+     - Xplorer switch off then on, or L1+R1+L2+R2+START+SELECT held on pad 1, while a game runs
+       opens the in-game menu.
    * - Serial debug in game
      - ``nops`` commands work while the game runs (dump, upload, halt, breakpoints).
    * - printf -> serial
@@ -59,6 +60,11 @@ In-game menu
 With the option on, switching the Xplorer switch off then on while a game runs freezes the game and
 shows a menu drawn over it: resume, cheats on/off, code finder (search a value in the game RAM,
 change it in the game, search again among the candidates, then turn a result into a cheat).
+
+The same menu opens with L1+R1+L2+R2+START+SELECT held together on pad 1. The resident core reads
+the pad itself on one vblank in eight, only while the controller/memory card port is idle (never in
+the middle of the game's own transfer, so a memory card save is never cut), and puts the game's
+port settings back. Like the switch, it needs the game to keep its interrupts on.
 
 Tools
 -----

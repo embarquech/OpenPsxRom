@@ -3,7 +3,8 @@
 // (src/romx.c, entry points in the header at 1F0000F0h):
 //   - kernel interrupt chain hook (SysEnqIntRP priority 0), on every interrupt:
 //       PAL/NTSC forcing, GameShark codes, serial bytes -> ROM protocol handler,
-//       Xplorer switch off->on -> in-game menu (ROM); while off: cheats and serial paused
+//       Xplorer switch off->on, or L1+R1+L2+R2+START+SELECT -> in-game menu (ROM);
+//       while the switch is off: cheats and serial paused
 //   - TTY: BIOS putchar (A0h:3Ch, B0h:3Dh) -> serial port
 //   - crash: A0h:40h (SystemErrorUnresolvedException) -> ROM crash report/screen
 //   - hardware breakpoints: debug exception (bp.s) -> registers saved -> ROM halt loop
@@ -25,7 +26,7 @@ int call_on_stack(u32 fn, u32 arg, u32 sp);
 void tcb_resume(void) __attribute__((noreturn));
 extern u8 bp_entry[];
 
-static int rom_ok(u32 fn) { return fn >= 0x1F000100 && fn < 0x1F010000; }
+static int rom_ok(u32 fn) { return fn >= ROM_HDR + 0x100 && fn < ROM_HDR + 0x10000; }
 static void rom_call(u32 fn, u32 arg) {
     if (!rom_ok(fn) || SH->in_rom) return;
     SH->in_rom = 1;
@@ -83,6 +84,20 @@ static void apply_cheats(void) {
     }
 }
 
+// ------------------------------------------------------------------ pad combo -> in-game menu
+// L1+R1+L2+R2+START+SELECT held: same as the Xplorer switch off->on. The core reads port 1 itself,
+// on one vblank in 8 and only while SIO0 is idle (no select line asserted: never in the middle
+// of the game's own pad or memory card transfer); the game's SIO0 settings are put back.
+#define I_STAT REG32(0x1F801070)
+#define SIO0_STAT REG32(0x1F801044)
+#define SIO0_CTRL REG16(0x1F80104A)
+// The pad is read by the ROM code (rom_combo, src/romx.c: no room here); this only decides when.
+static u32 combo_tick;
+static int combo_time(void) {
+    if (!(I_STAT & 1) || (++combo_tick & 7)) return 0;        // vblank pending, 1 in 8
+    return !(SIO0_CTRL & 0x0002) && (SIO0_STAT & 4);          // no transfer in progress
+}
+
 // ------------------------------------------------------------------ interrupt chain handler
 static u32 *cur_tcb(void) { return *(u32 **)(*(u32 *)0x80000108); }
 static u32 irq_verifier(void) {
@@ -107,6 +122,9 @@ static u32 irq_verifier(void) {
     if (f & (F_PAL | F_NTSC)) video_fix();
     u32 sw = REG8(0x1F060000) & 1;                    // Xplorer switch, 1 = on
     if ((f & F_MENU) && sw && !SH->sw_last) rom_call(ROM_MENU, 0);   // switch off -> on
+#ifndef NOCOMBO
+    else if ((f & F_MENU) && combo_time()) rom_call(ROM_COMBO, 0);    // or the pad combo
+#endif
     SH->sw_last = sw;
     if (!sw) return 0;
     if (f & F_CHEATS) apply_cheats();
