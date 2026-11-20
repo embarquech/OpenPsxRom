@@ -102,7 +102,8 @@ OpenPsxRom is linked at 1F005200h, in the writable sectors 1-4. Two small hooks
 pre-boot (1F004BCCh) and mid-boot (1F0051E0h): they install OpenPsxRom's hook and return straight
 to the BIOS, after restoring what Datel's code changed on the way. ``tools/arcart_image.py`` checks
 that the dump is that firmware, keeps the locked sectors byte for byte (a flash skips them as
-unchanged) and Datel's settings word at 13F80h. Sector 6 holds one memory card save; this build
+unchanged) and Datel's settings word at 13F80h. Sector 6 holds one memory card save, sector 7 the
+cheats: ``psx.py flash`` keeps both (``nops /rom`` writes the whole 128 KB, so erases them). This build
 has no ``.STR`` video player (no room left in sectors 1-4). The Cartridge banks screen only shows
 bank 1: a 128 KB chip has no bank 2, and nothing answers at 1F040000h.
 

@@ -203,6 +203,10 @@ def cmd_flash(link, path, full):
     openrom = bank == 1 and any(img[0x30:0x30 + len(t)] == t
                                 for t in (b'OpenPsxRom - open source', b'OpenROM - open source'))
     size = int(link.info.get('openrom_size', '10000'), 16) if openrom else BANK
+    # make arcart image (OpenPsxRom at 5200h of a Datel cart): its card save and cheats in sectors
+    # 6-7 are kept as for bank 1 (only sectors 0-5 compared and sent, the rest stays as flashed)
+    if bank == 1 and img[0x5230:0x5230 + 24] == b'OpenPsxRom - open source':
+        size = 0x18000
     rombuf = int(link.info['rombuf'], 16)
     print('%s -> bank %d (%08X), %d KB written%s' % (path, bank, FLASH_BASE + off, size >> 10,
           ', saves after it kept' if size < BANK else ''))
